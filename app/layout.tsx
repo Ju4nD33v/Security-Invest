@@ -4,6 +4,7 @@ import "./app.css";
 import "./responsive.css";
 import "./insights.css";
 import "./landing-extras.css";
+import "./interactions.css";
 
 export const metadata: Metadata = { title: "SYT — SecurityInvest", description: "Investimentos com clareza e segurança." };
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

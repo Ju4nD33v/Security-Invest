@@ -1,0 +1,49 @@
+/* Toasts */
+.toaststack{position:fixed;top:20px;right:20px;z-index:100;display:flex;flex-direction:column;gap:8px;max-width:320px}
+.toast{background:#112044;color:#fff;padding:12px 16px;border-radius:8px;font-size:12px;font-weight:700;box-shadow:0 18px 35px -20px #0f172a;animation:toast-in .18s ease}
+@keyframes toast-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+
+/* Modal */
+.modalveil{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:60;display:grid;place-items:center;padding:20px}
+.modalbox{background:#fff;border-radius:12px;padding:24px;width:min(100%,440px);max-height:82vh;overflow:auto;box-shadow:0 30px 60px -25px #0f172a}
+.modalhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.modalhead h3{font-size:15px;margin:0;letter-spacing:-.02em;color:#14203a}
+.modalhead button{border:0;background:transparent;color:#64748b}
+.modalbody{font-size:12px;line-height:1.65;color:#475569}
+.modalbody p{margin:0 0 10px}
+.modalnote{font-size:10px;color:#94a3b8;margin-top:14px!important}
+.helplist{list-style:none;margin:0;padding:0;display:grid;gap:14px}
+.helplist li{font-size:12px;line-height:1.6;color:#475569}
+.helplist b{color:#14203a;font-size:12px}
+.modalform{display:grid;gap:12px}
+.modalform label{font-size:11px;font-weight:800;color:#334155;display:grid;gap:6px}
+.modalform input,.modalform select{border:1px solid #d9e1ec;border-radius:7px;height:40px;padding:0 12px;font-size:12px;color:#0f172a;outline:none;width:100%}
+.modalform input:focus,.modalform select:focus{border-color:#2563eb;box-shadow:0 0 0 3px #dbeafe}
+.modalform .check{display:flex!important;flex-direction:row;align-items:center;gap:8px;font-weight:600}
+.modalform .check input{width:auto}
+
+/* Dropdown menus (allocation "more", row "roundmore", language chevron) */
+.moremenu-wrap{position:relative;display:inline-flex}
+.menuveil{position:fixed;inset:0;z-index:19;background:transparent}
+.moremenu{position:absolute;right:0;top:calc(100% + 6px);background:#fff;border:1px solid #e4eaf1;border-radius:9px;box-shadow:0 18px 35px -20px #1e293b;min-width:190px;z-index:20;padding:5px;display:grid}
+.moremenu button{border:0;background:transparent;text-align:left;padding:9px 10px;font-size:11px;font-weight:700;color:#334155;border-radius:6px}
+.moremenu button:hover{background:#f1f5f9}
+
+/* Notifications dropdown */
+.notifpanel{position:absolute;right:0;top:calc(100% + 10px);width:270px;background:#fff;border:1px solid #e4eaf1;border-radius:10px;box-shadow:0 18px 35px -20px #1e293b;padding:10px;z-index:20}
+.notifpanel-title{display:block;font-size:10px;color:#94a3b8;padding:4px 6px 8px;letter-spacing:.05em;text-transform:uppercase}
+.notifitem{font-size:11px;color:#334155;padding:9px 6px;border-top:1px solid #eef2f6;line-height:1.5}
+.notifitem:first-of-type{border-top:0}
+
+/* Misc buttons */
+.eyebtn{border:0;background:transparent;padding:0;color:inherit;display:inline-flex;vertical-align:middle;cursor:pointer}
+.footerlink{border:0;background:transparent;padding:0;font:inherit;color:inherit;cursor:pointer}
+.btn:disabled{opacity:.6;cursor:not-allowed;transform:none}
+
+.dark .modalbox{background:#15223a;color:#eef4ff}
+.dark .modalhead h3{color:#eef6ff}
+.dark .modalbody{color:#c9d7ef}
+.dark .helplist b{color:#eef6ff}
+.dark .moremenu,.dark .notifpanel{background:#15223a;border-color:#263a5d}
+.dark .moremenu button,.dark .notifitem{color:#dce8ff}
+.dark .moremenu button:hover{background:#1c3054}
