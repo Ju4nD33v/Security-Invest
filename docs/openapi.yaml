@@ -1,0 +1,30 @@
+openapi: 3.1.0
+info:
+  title: Secure Invest API
+  version: 0.1.0
+  description: API REST de análise financeira, Paper Trading e assinaturas. Paper Trading é simulado.
+servers: [{url: http://localhost:3000}]
+paths:
+  /api/auth/sign-in:
+    post:
+      summary: Cria sessão Supabase
+      responses: {'200': {description: Sessão criada}, '401': {description: Credenciais inválidas}}
+  /api/market/quote/{symbol}:
+    get:
+      summary: Cotação FMP normalizada
+      parameters: [{name: symbol, in: path, required: true, schema: {type: string}}]
+      responses: {'200': {description: Cotação}, '503': {description: Mercado indisponível}}
+  /api/trading/orders:
+    post:
+      summary: Ordem MARKET simulada
+      parameters: [{name: X-Idempotency-Key, in: header, required: true, schema: {type: string, format: uuid}}]
+      responses: {'201': {description: Ordem preenchida ou rejeitada}, '401': {description: Autenticação necessária}}
+  /api/payments/orders:
+    post:
+      summary: Cria Pix para plano do Secure Invest
+      parameters: [{name: X-Idempotency-Key, in: header, required: true, schema: {type: string, format: uuid}}]
+      responses: {'201': {description: Dados Pix}}
+  /api/webhooks/mercadopago:
+    post:
+      summary: Webhook Mercado Pago assinado
+      responses: {'200': {description: Evento processado ou duplicado}, '401': {description: Assinatura inválida}}

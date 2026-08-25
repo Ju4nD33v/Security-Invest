@@ -1,39 +1,111 @@
-# SYT (SecurityInvest)
+# Secure Invest
 
-Front-end web em Next.js, React, TypeScript e CSS, com dados simulados.
+Plataforma de análise e **Paper Trading**. Não é corretora, não envia ordens à B3 e não movimenta o saldo virtual. Pagamentos Mercado Pago servem exclusivamente aos planos do produto.
 
-## Sobre o projeto
+> Paper Trading é simulação. Dados e insights são informativos e educacionais, não recomendação de investimento.
 
-A SecurityInvest é uma plataforma de carteira de investimentos pensada para quem está começando no mercado financeiro. O objetivo é traduzir investimentos para uma linguagem simples e direta, sem o "economês" que costuma afastar iniciantes — a pessoa entende o que está acontecendo com o próprio dinheiro sem precisar decodificar termos técnicos antes de tomar qualquer decisão.
+## Arquitetura
 
-## Como a plataforma funciona
+Next.js 16 + React 19 + TypeScript; Route Handlers REST em `app/api`; serviços em `src/server`; Supabase Auth/PostgreSQL/RLS; FMP para mercado/fundamentos; Alpha Vantage para técnico/sentimento; Mercado Pago para Pix e webhook.
 
-- **Carteira de investimentos completa**: visão do patrimônio total, rentabilidade, posições e evolução ao longo do tempo em um dashboard único.
-- **Insights inteligentes com IA**: um agente de inteligência artificial analisa ativos, sinaliza possíveis oportunidades e pontos de atenção, e explica esses movimentos com base em raciocínios e princípios usados por grandes investidores — sempre em linguagem acessível, nunca como jargão de mercado.
-- **Assistente conversacional**: o usuário pode perguntar sobre um ativo específico ou sobre a própria carteira e receber respostas em português simples, contextualizadas.
-- **Linguagem sem barreiras**: em vez de siglas e termos técnicos do mercado financeiro, a plataforma prioriza explicações claras — a ideia é que ninguém desista de investir por não entender o vocabulário.
-- **Mercado em tempo real (simulado)**: cotações, radar de notícias e alocação de ativos, tudo com dados fictícios para fins de demonstração.
-- **Planos de acesso**: gratuito, inicial e premium, com diferentes níveis de profundidade de insights de IA.
+```text
+Browser → Next.js UI → /api → services/providers → Supabase / FMP / Alpha Vantage / Mercado Pago
+```
 
-> ⚠️ Os insights são gerados por IA e podem conter erros. Eles não constituem recomendação de investimento — a decisão final é sempre do usuário.
-
-## Status do projeto
-
-Este projeto ainda está em produção/desenvolvimento. Por enquanto, apenas o front-end está disponível, com todos os dados totalmente simulados, para dar uma ideia de como será a experiência do produto finalizado.
-
-## Como rodar
+## Instalação
 
 ```bash
 npm install
+copy .env.example .env.local
 npm run dev
 ```
 
-Depois acesse a URL exibida no terminal, normalmente http://127.0.0.1:3000.
+Configure somente `.env.local`; ele não pode ser versionado. Variáveis mínimas:
 
-## Observacoes
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
+SUPABASE_SECRET_KEY=
+APP_URL=http://localhost:3000
+ALLOWED_ORIGINS=http://localhost:3000
+SECURITY_HASH_SECRET=
+```
 
-- Nao ha backend implementado neste pacote.
-- Nao ha banco de dados.
-- Nao ha autenticacao real.
-- Todos os dados da interface sao simulados/mockados.
-- As pastas node_modules e .next foram deixadas fora por serem geradas automaticamente.
+Use também as chaves FMP, Alpha Vantage e Mercado Pago descritas em `.env.example`. Nunca coloque chave de servidor no browser. Chaves expostas devem ser revogadas e rotacionadas.
+
+## Deploy na Vercel
+
+O projeto compila na Vercel, mas só deve ser disponibilizado após a configuração abaixo:
+
+1. Crie as variáveis de produção no painel da Vercel — nunca as adicione ao Git:
+   - Públicas: `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+   - Exclusivamente de servidor: `SUPABASE_SECRET_KEY`, `SECURITY_HASH_SECRET`, `FMP_API_KEY`, `ALPHA_VANTAGE_API_KEY`, `MERCADO_PAGO_ACCESS_TOKEN` e `MERCADO_PAGO_WEBHOOK_SECRET`.
+   - Configuração: `APP_URL=https://<seu-dominio>` e `ALLOWED_ORIGINS=https://<seu-dominio>`.
+2. Aplique a migration no projeto Supabase e cadastre no Supabase Auth os redirect URLs `https://<seu-dominio>/auth/callback` e `https://<seu-dominio>/reset-password`.
+3. No Mercado Pago, configure o webhook para `https://<seu-dominio>/api/webhooks/mercadopago` e use credenciais de teste durante a homologação.
+4. Faça um teste real de cadastro, recuperação de senha, cotação FMP, ordem simulada e webhook antes de divulgar. Para a conta BRL inicial, use ativos cuja cotação FMP seja BRL; cotações em USD são recusadas de propósito.
+
+Não faça deploy público com chaves que já foram expostas: gere novas chaves antes de configurar a Vercel.
+
+## Supabase e migrations
+
+Execute a migration em `supabase/migrations/` pela Supabase CLI/pipeline. Ela cria profiles, Paper Trading, watchlists, planos, pagamentos, assinaturas, webhooks, logs, rate limit, health checks, constraints e RLS. O trigger de cadastro cria profile, preferências, watchlist e conta virtual.
+
+O primeiro administrador deve ser promovido diretamente no banco após confirmar o UUID:
+
+```sql
+update public.profiles set role = 'ADMIN' where id = '<uuid-confirmado>';
+```
+
+### Modelo de dados
+
+`profiles` e `user_preferences` complementam `auth.users`. Cada usuário recebe uma `paper_account`, uma `watchlist` padrão e preferências no trigger de cadastro. `paper_orders`, `paper_positions` e `paper_transactions` registram a simulação; a função transacional do PostgreSQL bloqueia a conta antes de alterar saldo ou posição. `plans` define preços; `payments`, `subscriptions` e `webhook_events` registram o ciclo de pagamento. `security_events`, `login_attempts`, `audit_logs`, `api_usage_logs`, `rate_limit_buckets` e `integration_health` atendem auditoria e operação.
+
+RLS está habilitado para as tabelas de usuário. O navegador utiliza a chave publicável e só lê os próprios registros; rotas de servidor usam a chave secreta exclusivamente no ambiente servidor para executar regras de negócio.
+
+## Segurança
+
+- Sessões Supabase em cookies e validação no servidor.
+- RLS/RBAC, proteção IDOR, Zod, allowlists e campos permitidos.
+- CORS restrito, CSRF por origin, headers de segurança e rate limit PostgreSQL.
+- Logs redigem tokens, senhas, cookies, chaves e CVV.
+- Ordens consultam cotação no backend; o cliente nunca define preço.
+- Webhook Mercado Pago valida HMAC, consulta o pagamento externo e compara status/valor/moeda/referência antes de ativar a assinatura.
+
+## Rotas
+
+| Método | Endpoint | Autorização | Finalidade |
+| --- | --- | --- | --- |
+| POST | `/api/auth/sign-up`, `/sign-in`, `/sign-out` | pública/sessão | Cadastro e sessão Supabase |
+| POST | `/api/auth/forgot-password`, `/reset-password` | pública/sessão | Recuperação de senha |
+| GET | `/api/auth/session` | sessão | Estado da sessão atual |
+| GET | `/api/market/search`, `/quote/:symbol`, `/profile/:symbol`, `/history/:symbol` | pública limitada | Dados FMP normalizados |
+| GET | `/api/fundamentals/:symbol`, `/api/analysis/technical/:symbol`, `/api/analysis/sentiment/:symbol`, `/api/insights/:symbol` | pública limitada | Fundamentos, técnico, sentimento e insights |
+| GET/POST | `/api/trading/*`, `/api/trading/orders` | sessão | Conta, carteira, posições, histórico e ordens simuladas |
+| GET/POST/DELETE | `/api/watchlist`, `/api/watchlist/assets` | sessão | Watchlist do próprio usuário |
+| GET/POST | `/api/plans`, `/api/payments/orders` | pública/sessão | Planos e Pix de assinatura |
+| POST | `/api/webhooks/mercadopago` | assinatura HMAC | Confirmação idempotente de pagamento |
+| GET/PATCH | `/api/admin/*` | ADMIN | Indicadores e gestão administrativa |
+
+O contrato OpenAPI resumido está em `docs/openapi.yaml`. O preço jamais é aceito no corpo de uma ordem; `POST /api/trading/orders` exige `X-Idempotency-Key` e aceita apenas `symbol`, `side`, `quantity` e `orderType: MARKET`.
+
+## Integrações e operação
+
+- FMP: pesquisa, cotação, perfil, histórico e fundamentos; cache configurável e timeout.
+- Alpha Vantage: RSI, SMA, EMA, MACD e News Sentiment; falhas não impedem a FMP.
+- Mercado Pago: Pix para planos; use credenciais de teste até a homologação. O webhook consulta novamente o pagamento no provedor antes de conceder acesso.
+- Supabase: Auth, PostgreSQL e RLS. A migration ainda precisa ser aplicada no projeto Supabase correto.
+
+Se a FMP estiver indisponível ou a cotação estiver vencida, a ordem de Paper Trading é rejeitada com `MARKET_DATA_UNAVAILABLE`; o sistema não inventa preços.
+
+## Qualidade
+
+```bash
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+npm audit --omit=dev
+```
+
+Os testes não chamam serviços externos nem realizam pagamentos. Antes de produção, aplique migrations em ambiente de teste, configure URLs de callback/webhook e use credenciais de teste do Mercado Pago. Não promova para produção sem uma rodada de integração contra Supabase, FMP, Alpha Vantage e Mercado Pago sandbox.

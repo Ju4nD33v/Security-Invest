@@ -2,10 +2,14 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowDownRight, ArrowUpRight, Bell, BookOpen, Bot, BrainCircuit, BriefcaseBusiness, ChevronDown, CircleHelp, Eye, EyeOff, FileBarChart, Globe2, LayoutDashboard, LockKeyhole, LogOut, Menu, Moon, Plus, Search, Send, Settings as SettingsIcon, ShieldCheck, SlidersHorizontal, Sparkles, Sun, TrendingDown, TrendingUp, UserRound, WalletCards, X } from "lucide-react";
-import { FormEvent, useState, useRef, useContext, createContext, Dispatch, SetStateAction } from "react";
+import { FormEvent, useState, useRef, useContext, createContext, Dispatch, SetStateAction, useEffect } from "react";
 
 type Screen = "home" | "login" | "signup" | "recover" | "dashboard" | "portfolio" | "investments" | "market" | "reports" | "profile" | "settings";
 type ProfileData = { name: string; email: string; phone: string; avatarUrl: string };
+type PortfolioSummary = { cashBalance: number; investedValue: number; currentValue: number; totalEquity: number; unrealizedPnl: number; unrealizedPnlPercent: number; positionCount: number };
+type PortfolioPosition = { symbol: string; quantity: number | string; average_price: number | string; marketDataAvailable: boolean; quote?: { price: number; currency: string }; investedValue?: number; currentValue?: number; unrealizedPnl?: number; unrealizedPnlPercent?: number };
+type PortfolioData = { summary: PortfolioSummary; positions: PortfolioPosition[] };
+type MarketSearchResult = { symbol?: string; name?: string; exchangeShortName?: string };
 
 const fmt = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 
@@ -176,7 +180,7 @@ function Landing({ go }: { go: (s: Screen) => void }) {
         <p>Uma carteira completa com um agente de IA para apoiar sua leitura de investimentos, identificar movimentos e investigar possíveis compras e vendas.</p>
         <div className="heroactions">
           <Btn onClick={() => go("signup")}>Começar agora <ArrowUpRight size={17} /></Btn>
-          <Btn variant="outline" onClick={() => go("dashboard")}>Explorar plataforma</Btn>
+          <Btn variant="outline" onClick={() => go("login")}>Explorar plataforma</Btn>
         </div>
         <a className="plans-link" href="#planos">Conheça os planos e recursos <ChevronDown size={16} /></a>
         <div className="trust"><span><ShieldCheck /> Dados protegidos</span><span><Sparkles /> Insights inteligentes</span><span><TrendingUp /> Dados em tempo real</span></div>
@@ -263,7 +267,7 @@ function Landing({ go }: { go: (s: Screen) => void }) {
         <p className="plansnote">Os insights são gerados por IA e podem conter erros. Eles não constituem recomendação de investimento.</p>
       </section>
       <section className="quote">
-        <p>"Finalmente consigo entender como meus investimentos conversam entre si."</p>
+        <p>&ldquo;Finalmente consigo entender como meus investimentos conversam entre si.&rdquo;</p>
         <div><span className="quoteavatar">RM</span><span><b>Renata Moreira</b><small>Cliente SecurityInvest</small></span></div>
       </section>
       <section className="faq" id="perguntas">
@@ -296,19 +300,31 @@ function Auth({ screen, go }: { screen: Screen; go: (s: Screen) => void }) {
   const showToast = useToast();
   const [sent, setSent] = useState(false);
   const [show, setShow] = useState(false);
+  const [loading, setLoading] = useState(false);
   const isSign = screen === "signup";
   const recover = screen === "recover";
 
-  function submit(e: FormEvent) {
+  async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (recover) { setSent(true); return; }
-    showToast(isSign ? "Conta criada com sucesso" : "Login realizado com sucesso");
-    go("dashboard");
+    const form = new FormData(e.currentTarget);
+    const endpoint = recover ? "/api/auth/forgot-password" : isSign ? "/api/auth/sign-up" : "/api/auth/sign-in";
+    const password = String(form.get("password") ?? "");
+    if (isSign && password !== String(form.get("passwordConfirmation") ?? "")) { showToast("As senhas não coincidem"); return; }
+    const body = recover ? { email: form.get("email") } : isSign ? { fullName: form.get("fullName"), email: form.get("email"), password } : { email: form.get("email"), password };
+    setLoading(true);
+    try {
+      const response = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error?.message || "Não foi possível concluir a solicitação.");
+      if (recover) { setSent(true); return; }
+      showToast(isSign ? "Confira seu e-mail para confirmar o cadastro" : "Login realizado com sucesso");
+      if (!isSign) go("dashboard");
+    } catch (error) { showToast(error instanceof Error ? error.message : "Não foi possível concluir a solicitação."); }
+    finally { setLoading(false); }
   }
 
   function socialLogin() {
-    showToast("Login simulado com Google");
-    go("dashboard");
+    showToast("Login com Google ainda não está configurado.");
   }
 
   return (
@@ -321,7 +337,7 @@ function Auth({ screen, go }: { screen: Screen; go: (s: Screen) => void }) {
           <h1>Seu patrimônio merece uma visão mais inteligente.</h1>
           <p>Organize, acompanhe e evolua seus investimentos em um só lugar.</p>
         </div>
-        <div className="authquote">"A plataforma deixa o mercado mais claro."<span>— Ricardo M., investidor</span></div>
+        <div className="authquote">&ldquo;A plataforma deixa o mercado mais claro.&rdquo;<span>— Ricardo M., investidor</span></div>
       </section>
       <section className="authform">
         <div className="formbox">
@@ -332,20 +348,19 @@ function Auth({ screen, go }: { screen: Screen; go: (s: Screen) => void }) {
             <form onSubmit={submit}>
               {isSign && (
                 <>
-                  <label>Nome completo<input required placeholder="Como devemos chamar você?" /></label>
-                  <label>CPF<input required inputMode="numeric" placeholder="000.000.000-00" /></label>
+                  <label>Nome completo<input name="fullName" required placeholder="Como devemos chamar você?" /></label>
                 </>
               )}
-              <label>E-mail<input required type="email" placeholder="voce@email.com" /></label>
+              <label>E-mail<input name="email" required type="email" placeholder="voce@email.com" /></label>
               {!recover && (
                 <>
                   <label>Senha
                     <div className="pass">
-                      <input required minLength={6} type={show ? "text" : "password"} placeholder="Sua senha" />
+                      <input name="password" required minLength={12} type={show ? "text" : "password"} placeholder="Sua senha" />
                       <button type="button" onClick={() => setShow(!show)} aria-label="Alternar visibilidade da senha">{show ? <EyeOff size={18} /> : <Eye size={18} />}</button>
                     </div>
                   </label>
-                  {isSign && <label>Confirmar senha<input required minLength={6} type="password" placeholder="Repita sua senha" /></label>}
+                  {isSign && <label>Confirmar senha<input name="passwordConfirmation" required minLength={12} type="password" placeholder="Repita sua senha" /></label>}
                 </>
               )}
               {!isSign && !recover && (
@@ -355,7 +370,7 @@ function Auth({ screen, go }: { screen: Screen; go: (s: Screen) => void }) {
                 </div>
               )}
               {isSign && <label className="check"><input required type="checkbox" /> Li e aceito os termos de uso e privacidade.</label>}
-              <Btn type="submit">{recover ? "Enviar recuperação" : isSign ? "Criar minha conta" : "Entrar na plataforma"} <ArrowUpRight size={17} /></Btn>
+              <Btn type="submit" disabled={loading}>{loading ? "Aguarde..." : recover ? "Enviar recuperação" : isSign ? "Criar minha conta" : "Entrar na plataforma"} <ArrowUpRight size={17} /></Btn>
             </form>
           )}
           {!recover && (
@@ -380,9 +395,35 @@ function Dashboard({ page, go }: { page: Screen; go: (s: Screen) => void }) {
   const [helpOpen, setHelpOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [unread, setUnread] = useState(true);
-  const [assetList, setAssetList] = useState<string[][]>(() => assets.map((a) => [...a, tagOf(a[0])]));
+  const [assetList] = useState<string[][]>(() => assets.map((a) => [...a, tagOf(a[0])]));
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
-  const [profile, setProfile] = useState<ProfileData>({ name: "Olívia Lima", email: "olivia.lima@email.com", phone: "(11) 99999-9999", avatarUrl: "" });
+  const [profile, setProfile] = useState<ProfileData>({ name: "Teste da Silva", email: "teste@gmail.com", phone: "(11) 99999-9999", avatarUrl: "" });
+  const [portfolio, setPortfolio] = useState<PortfolioData | null>(null);
+
+  async function refreshPortfolio() {
+    const response = await fetch("/api/trading/portfolio");
+    if (!response.ok) return;
+    const payload = await response.json() as PortfolioData;
+    if (payload.summary && Array.isArray(payload.positions)) setPortfolio(payload);
+  }
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/trading/portfolio")
+      .then(async (response) => response.ok ? await response.json() as PortfolioData : null)
+      .then((payload) => { if (active && payload?.summary && Array.isArray(payload.positions)) setPortfolio(payload); })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/watchlist")
+      .then(async (response) => response.ok ? await response.json() as { watchlist?: { watchlist_assets?: { symbol: string }[] } } : null)
+      .then((payload) => { if (active && payload?.watchlist) setFavorites(new Set(payload.watchlist.watchlist_assets?.map((asset) => asset.symbol) ?? [])); })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, []);
 
   const title: Record<string, string> = { dashboard: "Visão geral", portfolio: "Carteira", investments: "Insights Inteligentes", market: "Mercado", reports: "Relatórios", profile: "Perfil", settings: "Configurações" };
 
@@ -394,6 +435,11 @@ function Dashboard({ page, go }: { page: Screen; go: (s: Screen) => void }) {
     "Novo insight disponível em Investimentos",
     "Seu resumo semanal está pronto",
   ];
+
+  async function logout() {
+    await fetch("/api/auth/sign-out", { method: "POST" }).catch(() => undefined);
+    go("home");
+  }
 
   return (
     <main className={dark ? "app dark" : "app"}>
@@ -410,7 +456,7 @@ function Dashboard({ page, go }: { page: Screen; go: (s: Screen) => void }) {
         ))}
         <div className="sidespacer" />
         <button className="navitem" onClick={() => setHelpOpen(true)}><CircleHelp size={19} />Central de ajuda</button>
-        <button className="navitem logout" onClick={() => go("home")}><LogOut size={19} />Sair</button>
+        <button className="navitem logout" onClick={logout}><LogOut size={19} />Sair</button>
       </aside>
       <div className="mobileveil" onClick={() => setOpen(false)} />
       <section className="workspace">
@@ -440,9 +486,9 @@ function Dashboard({ page, go }: { page: Screen; go: (s: Screen) => void }) {
         </header>
         <AnimatePresence mode="wait">
           <motion.div key={page} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }} transition={{ duration: .22 }} className="content">
-            {page === "dashboard" ? <Overview go={go} assetList={assetList} /> :
+            {page === "dashboard" ? <Overview go={go} assetList={assetList} portfolio={portfolio?.summary ?? null} /> :
               page === "investments" ? <Insights /> :
-              page === "portfolio" || page === "market" ? <Assets page={page} assetList={assetList} setAssetList={setAssetList} search={search} favorites={favorites} setFavorites={setFavorites} /> :
+              page === "portfolio" || page === "market" ? <Assets page={page} assetList={assetList} search={search} favorites={favorites} setFavorites={setFavorites} portfolio={portfolio} refreshPortfolio={refreshPortfolio} /> :
               page === "profile" ? <Profile profile={profile} setProfile={setProfile} /> :
               page === "settings" ? <Settings dark={dark} setDark={setDark} /> :
               <Reports />}
@@ -464,7 +510,7 @@ function Dashboard({ page, go }: { page: Screen; go: (s: Screen) => void }) {
 }
 
 /* ---------- Overview (dashboard home) ---------- */
-function Overview({ go, assetList }: { go: (s: Screen) => void; assetList: string[][] }) {
+function Overview({ go, assetList, portfolio }: { go: (s: Screen) => void; assetList: string[][]; portfolio: PortfolioSummary | null }) {
   const showToast = useToast();
   const [hideBalance, setHideBalance] = useState(false);
   const [range, setRange] = useState<"6M" | "1A" | "Máx.">("6M");
@@ -485,6 +531,7 @@ function Overview({ go, assetList }: { go: (s: Screen) => void; assetList: strin
 
   return (
     <>
+      <div className="ai-notice" role="note"><ShieldCheck size={20} /><div><b>PAPER TRADING · SALDO VIRTUAL</b><p>Esta carteira é uma simulação. Nenhuma ordem representa compra ou venda real de ativos.</p></div></div>
       <div className="pagehead">
         <div><p>TERÇA-FEIRA, 04 DE AGOSTO</p><h1>Olá, Olívia <span>↗</span></h1><small>Acompanhe seus investimentos hoje.</small></div>
         <Btn onClick={() => go("investments")}>Ver oportunidades <ArrowUpRight size={16} /></Btn>
@@ -498,13 +545,13 @@ function Overview({ go, assetList }: { go: (s: Screen) => void; assetList: strin
                 {hideBalance ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </span>
-            <h2>{hideBalance ? "R$ ••••••" : fmt.format(124850.62)}</h2>
-            <b><TrendingUp size={15} /> +8,42% <small>no ano</small></b>
+            <h2>{hideBalance ? "R$ ••••••" : portfolio ? fmt.format(portfolio.totalEquity) : "—"}</h2>
+            <b><TrendingUp size={15} /> {portfolio ? `${portfolio.unrealizedPnlPercent >= 0 ? "+" : ""}${portfolio.unrealizedPnlPercent.toFixed(2).replace(".", ",")}%` : "—"} <small>resultado não realizado</small></b>
           </div>
-          <div className="sparkbars">▁▃▂▅▃▆▅▇▆█</div>
+          <div className="sparkbars">▁▃▂▅▃▆▅▇▆</div>
         </div>
-        <Metric title="Rentabilidade" value={hideBalance ? "R$ ••••••" : "R$ 9.673,18"} note="+ R$ 1.284 este mês" green />
-        <Metric title="Investimentos ativos" value={String(assetList.length)} note="Em 6 categorias" />
+        <Metric title="P&L não realizado" value={hideBalance ? "R$ ••••••" : portfolio ? fmt.format(portfolio.unrealizedPnl) : "—"} note="Dados de mercado disponíveis" green />
+        <Metric title="Posições simuladas" value={portfolio ? String(portfolio.positionCount) : String(assetList.length)} note="Saldo virtual separado" />
         <Metric title="Proventos previstos" value={hideBalance ? "R$ ••••" : "R$ 438,26"} note="Próximos 30 dias" />
       </div>
       <div className="dashboardgrid">
@@ -578,14 +625,15 @@ function Overview({ go, assetList }: { go: (s: Screen) => void; assetList: strin
 
 /* ---------- Assets (Carteira / Mercado) ---------- */
 function Assets({
-  page, assetList, setAssetList, search, favorites, setFavorites,
+  page, assetList, search, favorites, setFavorites, portfolio, refreshPortfolio,
 }: {
   page: Screen;
   assetList: string[][];
-  setAssetList: Dispatch<SetStateAction<string[][]>>;
   search: string;
   favorites: Set<string>;
   setFavorites: Dispatch<SetStateAction<Set<string>>>;
+  portfolio: PortfolioData | null;
+  refreshPortfolio: () => Promise<void>;
 }) {
   const showToast = useToast();
   const [tag, setTag] = useState("Todos");
@@ -594,12 +642,36 @@ function Assets({
   const [onlyDown, setOnlyDown] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [detailItem, setDetailItem] = useState<string[] | null>(null);
-  const [form, setForm] = useState({ ticker: "", name: "", price: "", change: "", category: "Renda variável" });
+  const [orderForm, setOrderForm] = useState({ symbol: "", side: "BUY", quantity: "" });
+  const [orderPending, setOrderPending] = useState(false);
+  const [marketResults, setMarketResults] = useState<MarketSearchResult[]>([]);
+  const [marketSearching, setMarketSearching] = useState(false);
+  const [marketSearchError, setMarketSearchError] = useState(false);
   const [alertForm, setAlertForm] = useState({ ticker: assetList[0]?.[0] ?? "", condition: "acima", value: "" });
 
   const subtitle = page === "portfolio" ? "Acompanhe a composição da sua carteira." : page === "market" ? "Dados de mercado para orientar suas decisões." : "Encontre ativos que combinam com sua estratégia.";
+  const portfolioAssets = page === "portfolio" && portfolio ? portfolio.positions.filter((position) => position.marketDataAvailable && position.quote).map((position) => {
+    const variation = position.unrealizedPnlPercent ?? 0;
+    return [position.symbol, `${Number(position.quantity)} cota(s) · PM ${fmt.format(Number(position.average_price))}`, fmt.format(position.quote!.price), `${variation >= 0 ? "+" : ""}${variation.toFixed(2).replace(".", ",")}%`, variation >= 0 ? "up" : "down", tagOf(position.symbol)];
+  }) : assetList;
+  const marketAssets = search.trim() ? marketResults.filter((result): result is Required<Pick<MarketSearchResult, "symbol">> & MarketSearchResult => Boolean(result.symbol)).map((result) => [result.symbol!, result.name ?? result.exchangeShortName ?? "Ativo listado", "Consulte a cotação", "—", "up", tagOf(result.symbol!)]) : [];
+  const listForPage = page === "market" ? marketAssets : portfolioAssets;
 
-  const searched = assetList.filter((a) => a[0].toLowerCase().includes(search.toLowerCase()) || a[1].toLowerCase().includes(search.toLowerCase()));
+  useEffect(() => {
+    if (page !== "market" || !search.trim()) return;
+    let active = true;
+    const timer = window.setTimeout(() => {
+      setMarketSearching(true);
+      fetch(`/api/market/search?q=${encodeURIComponent(search.trim())}`)
+        .then(async (response) => response.ok ? await response.json() as { data?: MarketSearchResult[] } : null)
+        .then((payload) => { if (active) { setMarketResults(Array.isArray(payload?.data) ? payload.data : []); setMarketSearchError(!payload); } })
+        .catch(() => { if (active) { setMarketResults([]); setMarketSearchError(true); } })
+        .finally(() => { if (active) setMarketSearching(false); });
+    }, 300);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [page, search]);
+
+  const searched = listForPage.filter((a) => a[0].toLowerCase().includes(search.toLowerCase()) || a[1].toLowerCase().includes(search.toLowerCase()));
   const tagged = searched.filter((a) => {
     if (tag === "Favoritos") return favorites.has(a[0]);
     if (tag === "Renda variável") return a[5] === "Renda variável";
@@ -612,30 +684,55 @@ function Assets({
     return true;
   });
 
-  function submitAsset(e: FormEvent) {
+  async function submitOrder(e: FormEvent) {
     e.preventDefault();
-    if (!form.ticker.trim() || !form.price.trim()) return;
-    const tone = form.change.trim().startsWith("-") || form.change.trim().startsWith("−") ? "down" : "up";
-    setAssetList((list) => [...list, [form.ticker.toUpperCase(), form.name || "Ativo adicionado", form.price, form.change || "+0,00%", tone, form.category]]);
-    showToast(`${form.ticker.toUpperCase()} adicionado à carteira`);
-    setForm({ ticker: "", name: "", price: "", change: "", category: "Renda variável" });
-    setAddOpen(false);
+    const quantity = Number(orderForm.quantity);
+    if (!orderForm.symbol.trim() || !Number.isInteger(quantity) || quantity < 1) return;
+    setOrderPending(true);
+    try {
+      const idempotencyKey = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+      const response = await fetch("/api/trading/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Idempotency-Key": idempotencyKey },
+        body: JSON.stringify({ symbol: orderForm.symbol.trim().toUpperCase(), side: orderForm.side, quantity, orderType: "MARKET" }),
+      });
+      const payload = await response.json().catch(() => null) as { error?: { message?: string } } | null;
+      if (!response.ok) throw new Error(payload?.error?.message ?? "Não foi possível enviar a ordem simulada.");
+      await refreshPortfolio();
+      showToast(`Ordem simulada de ${orderForm.side === "BUY" ? "compra" : "venda"} enviada com sucesso.`);
+      setOrderForm({ symbol: "", side: "BUY", quantity: "" });
+      setAddOpen(false);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Não foi possível enviar a ordem simulada.");
+    } finally { setOrderPending(false); }
   }
 
   function submitAlert(e: FormEvent) {
     e.preventDefault();
     if (!alertForm.ticker || !alertForm.value.trim()) return;
     showToast(`Alerta criado: ${alertForm.ticker} ${alertForm.condition === "acima" ? "acima de" : "abaixo de"} R$ ${alertForm.value}`);
-    setAlertForm({ ticker: assetList[0]?.[0] ?? "", condition: "acima", value: "" });
+    setAlertForm({ ticker: listForPage[0]?.[0] ?? "", condition: "acima", value: "" });
     setAddOpen(false);
   }
 
-  function toggleFav(ticker: string) {
-    setFavorites((s) => {
-      const next = new Set(s);
-      next.has(ticker) ? next.delete(ticker) : next.add(ticker);
-      return next;
-    });
+  async function toggleFav(ticker: string) {
+    const isFavorite = favorites.has(ticker);
+    try {
+      const response = await fetch(isFavorite ? `/api/watchlist/assets/${encodeURIComponent(ticker)}` : "/api/watchlist/assets", {
+        method: isFavorite ? "DELETE" : "POST",
+        headers: isFavorite ? undefined : { "Content-Type": "application/json" },
+        body: isFavorite ? undefined : JSON.stringify({ symbol: ticker }),
+      });
+      if (!response.ok) throw new Error("Não foi possível atualizar a watchlist.");
+      setFavorites((current) => {
+        const next = new Set(current);
+        if (isFavorite) next.delete(ticker); else next.add(ticker);
+        return next;
+      });
+      showToast(isFavorite ? `${ticker} removido da watchlist` : `${ticker} adicionado à watchlist`);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Não foi possível atualizar a watchlist.");
+    }
   }
 
   return (
@@ -646,13 +743,13 @@ function Assets({
           <h1>{page === "portfolio" ? "Sua carteira" : "Mercado"}</h1>
           <small>{subtitle}</small>
         </div>
-        <Btn onClick={() => setAddOpen(true)}><Plus size={16} /> {page === "portfolio" ? "Adicionar ativo" : "Criar alerta"}</Btn>
+        <Btn onClick={() => setAddOpen(true)}><Plus size={16} /> {page === "portfolio" ? "Nova ordem simulada" : "Criar alerta"}</Btn>
       </div>
       {page === "portfolio" && (
         <div className="portfoliohero">
-          <div><span>Patrimônio investido</span><h2>R$ 124.850,62</h2><b>↗ 8,42% <small>desde o início</small></b></div>
-          <div><span>Resultado total</span><h3 className="positive">+ R$ 9.673,18</h3><small>Atualizado agora</small></div>
-          <div><span>Último aporte</span><h3>R$ 2.500,00</h3><small>01 de agosto</small></div>
+          <div><span>Patrimônio total virtual</span><h2>{portfolio ? fmt.format(portfolio.summary.totalEquity) : "—"}</h2><b>↗ {portfolio ? `${portfolio.summary.unrealizedPnlPercent >= 0 ? "+" : ""}${portfolio.summary.unrealizedPnlPercent.toFixed(2).replace(".", ",")}%` : "—"} <small>resultado não realizado</small></b></div>
+          <div><span>Saldo virtual disponível</span><h3>{portfolio ? fmt.format(portfolio.summary.cashBalance) : "—"}</h3><small>Exclusivo para simulação</small></div>
+          <div><span>Valor investido</span><h3>{portfolio ? fmt.format(portfolio.summary.investedValue) : "—"}</h3><small>{portfolio ? `${portfolio.summary.positionCount} posição(ões)` : "Dados indisponíveis"}</small></div>
         </div>
       )}
       <section className="panel tablepanel">
@@ -676,37 +773,36 @@ function Assets({
                 options={[
                   { label: favorites.has(a[0]) ? "Remover dos favoritos" : "Adicionar aos favoritos", onClick: () => toggleFav(a[0]) },
                   { label: "Ver detalhes", onClick: () => setDetailItem(a) },
-                  ...(page === "portfolio" ? [{ label: "Remover da carteira", onClick: () => { setAssetList((list) => list.filter((x) => x[0] !== a[0])); showToast(`${a[0]} removido da carteira`); } }] : []),
+                  ...(page === "portfolio" ? [{ label: "Vender posição", onClick: () => { setOrderForm({ symbol: a[0], side: "SELL", quantity: "" }); setAddOpen(true); } }] : []),
                 ]}
               />
             </div>
           )) : (
-            <div className="empty"><Search /><h3>Nenhum ativo encontrado</h3><p>Tente buscar por outro código ou nome.</p></div>
+            <div className="empty"><Search /><h3>{marketSearching ? "Buscando ativos…" : page === "market" && !search.trim() ? "Pesquise um ativo" : "Nenhum ativo encontrado"}</h3><p>{page === "market" && !search.trim() ? "Use a busca acima para consultar dados de mercado reais." : marketSearchError ? "Não foi possível consultar os dados de mercado agora." : "Tente buscar por outro código ou nome."}</p></div>
           )}
         </div>
       </section>
 
       {addOpen && (
-        <Modal title={page === "portfolio" ? "Adicionar ativo" : "Criar alerta de mercado"} onClose={() => setAddOpen(false)}>
+        <Modal title={page === "portfolio" ? "Nova ordem de Paper Trading" : "Criar alerta de mercado"} onClose={() => setAddOpen(false)}>
           {page === "portfolio" ? (
-            <form className="modalform" onSubmit={submitAsset}>
-              <label>Ticker<input required value={form.ticker} onChange={(e) => setForm({ ...form, ticker: e.target.value })} placeholder="Ex: BBAS3" /></label>
-              <label>Nome<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex: Banco do Brasil ON" /></label>
-              <label>Preço<input required value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="R$ 0,00" /></label>
-              <label>Variação<input value={form.change} onChange={(e) => setForm({ ...form, change: e.target.value })} placeholder="+0,00%" /></label>
-              <label>Categoria
-                <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
-                  <option>Renda variável</option>
-                  <option>ETFs</option>
+            <form className="modalform" onSubmit={submitOrder}>
+              <p className="modalnote">SIMULAÇÃO: o preço é obtido pelo servidor no momento da execução. Nenhum recurso financeiro real será movimentado.</p>
+              <label>Operação
+                <select value={orderForm.side} onChange={(e) => setOrderForm({ ...orderForm, side: e.target.value })}>
+                  <option value="BUY">Comprar</option>
+                  <option value="SELL">Vender</option>
                 </select>
               </label>
-              <Btn type="submit">Adicionar à carteira</Btn>
+              <label>Ativo<input required value={orderForm.symbol} onChange={(e) => setOrderForm({ ...orderForm, symbol: e.target.value })} placeholder="Ex.: PETR4" maxLength={15} /></label>
+              <label>Quantidade<input required type="number" min="1" step="1" inputMode="numeric" value={orderForm.quantity} onChange={(e) => setOrderForm({ ...orderForm, quantity: e.target.value })} placeholder="Ex.: 10" /></label>
+              <Btn type="submit" disabled={orderPending}>{orderPending ? "Enviando ordem..." : "Confirmar ordem simulada"}</Btn>
             </form>
           ) : (
             <form className="modalform" onSubmit={submitAlert}>
               <label>Ativo
                 <select value={alertForm.ticker} onChange={(e) => setAlertForm({ ...alertForm, ticker: e.target.value })}>
-                  {assetList.map((a) => <option key={a[0]} value={a[0]}>{a[0]}</option>)}
+                  {listForPage.map((a) => <option key={a[0]} value={a[0]}>{a[0]}</option>)}
                 </select>
               </label>
               <label>Condição
@@ -960,7 +1056,7 @@ function Settings({ dark, setDark }: { dark: boolean; setDark: (v: boolean) => v
                 <div className="menuveil" onClick={() => setLangOpen(false)} />
                 <div className="moremenu" role="listbox">
                   {languages.map((l) => (
-                    <button key={l} role="option" onClick={() => { setLang(l); setLangOpen(false); showToast(l === "Português (Brasil)" ? "Idioma definido" : "Interface segue em PT-BR nesta prévia"); }}>{l}</button>
+                    <button key={l} role="option" aria-selected={l === lang} onClick={() => { setLang(l); setLangOpen(false); showToast(l === "Português (Brasil)" ? "Idioma definido" : "Interface segue em PT-BR nesta prévia"); }}>{l}</button>
                   ))}
                 </div>
               </>
