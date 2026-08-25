@@ -16,11 +16,10 @@ Browser → Next.js UI → /api → services/providers → Supabase / FMP / Alph
 
 ```bash
 npm install
-copy .env.example .env.local
 npm run dev
 ```
 
-Configure somente `.env.local`; ele não pode ser versionado. Variáveis mínimas:
+Crie e configure somente `.env.local`; ele não pode ser versionado. Variáveis mínimas:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=
@@ -31,7 +30,7 @@ ALLOWED_ORIGINS=http://localhost:3000
 SECURITY_HASH_SECRET=
 ```
 
-Use também as chaves FMP, Alpha Vantage e Mercado Pago descritas em `.env.example`. Nunca coloque chave de servidor no browser. Chaves expostas devem ser revogadas e rotacionadas.
+Inclua também as chaves FMP, Alpha Vantage e Mercado Pago necessárias para as integrações. Nunca coloque chave de servidor no browser. Chaves expostas devem ser revogadas e rotacionadas.
 
 ## Deploy na Vercel
 
