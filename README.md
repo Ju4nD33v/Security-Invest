@@ -12,7 +12,7 @@ O deployment público está funcional. Para utilizar recursos que dependem de pr
 
 ## Arquitetura
 
-Next.js 16 + React 19 + TypeScript; Route Handlers REST em `app/api`; serviços em `src/server`; Supabase Auth/PostgreSQL/RLS; FMP para mercado/fundamentos; Alpha Vantage para técnico/sentimento; Mercado Pago para Pix e webhook.
+Next.js 16 + React 19 + TypeScript; Route Handlers REST em `app/api`; serviços em `src/server`; Supabase Auth/PostgreSQL/RLS; FMP para mercado global/fundamentos; BRAPI para cotações de ativos brasileiros; Alpha Vantage para técnico/sentimento; Mercado Pago para Pix e webhook.
 
 ```text
 Browser → Next.js UI → /api → services/providers → Supabase / FMP / Alpha Vantage / Mercado Pago
@@ -44,7 +44,7 @@ O projeto compila na Vercel, mas só deve ser disponibilizado após a configura�
 
 1. Crie as variáveis de produção no painel da Vercel — nunca as adicione ao Git:
    - Públicas: `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
-   - Exclusivamente de servidor: `SUPABASE_SECRET_KEY`, `SECURITY_HASH_SECRET`, `FMP_API_KEY`, `ALPHA_VANTAGE_API_KEY`, `MERCADO_PAGO_ACCESS_TOKEN` e `MERCADO_PAGO_WEBHOOK_SECRET`.
+   - Exclusivamente de servidor: `SUPABASE_SECRET_KEY`, `SECURITY_HASH_SECRET`, `FMP_API_KEY`, `BRAPI_TOKEN`, `ALPHA_VANTAGE_API_KEY`, `MERCADO_PAGO_ACCESS_TOKEN` e `MERCADO_PAGO_WEBHOOK_SECRET`.
    - Configuração: `APP_URL=https://<seu-dominio>` e `ALLOWED_ORIGINS=https://<seu-dominio>`.
 2. Aplique a migration no projeto Supabase e cadastre no Supabase Auth os redirect URLs `https://<seu-dominio>/auth/callback` e `https://<seu-dominio>/reset-password`.
 3. No Mercado Pago, configure o webhook para `https://<seu-dominio>/api/webhooks/mercadopago` e use credenciais de teste durante a homologação.
@@ -96,7 +96,8 @@ O contrato OpenAPI resumido está em `docs/openapi.yaml`. O preço jamais é ace
 
 ## Integrações e operação
 
-- FMP: pesquisa, cotação, perfil, histórico e fundamentos; cache configurável e timeout.
+- FMP: pesquisa, perfil, histórico, fundamentos e cotações internacionais; cache configurável e timeout.
+- BRAPI: cotações B3 normalizadas para o mesmo contrato de mercado, com token exclusivamente no servidor.
 - Alpha Vantage: RSI, SMA, EMA, MACD e News Sentiment; falhas não impedem a FMP.
 - Mercado Pago: Pix para planos; use credenciais de teste até a homologação. O webhook consulta novamente o pagamento no provedor antes de conceder acesso.
 - Supabase: Auth, PostgreSQL e RLS. A migration ainda precisa ser aplicada no projeto Supabase correto.

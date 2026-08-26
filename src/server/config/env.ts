@@ -1,27 +1,38 @@
 import { z } from "zod";
 
+const optionalString = z.preprocess(
+  (value) => typeof value === "string" ? value.trim() || undefined : value,
+  z.string().min(1).optional(),
+);
+const optionalUrl = z.preprocess(
+  (value) => typeof value === "string" ? value.trim() || undefined : value,
+  z.string().url().optional(),
+);
+
 const serverEnvSchema = z.object({
-  NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
-  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().min(1).optional(),
+  NEXT_PUBLIC_SUPABASE_URL: optionalUrl,
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: optionalString,
   // Legacy aliases kept server-side to make existing deployments configurable
   // without ever exposing a secret to the browser.
-  SUPABASE_URL: z.string().url().optional(),
-  SUPABASE_PUBLISHABLE_KEY: z.string().min(1).optional(),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
-  SUPABASE_SECRET_KEY: z.string().min(1).optional(),
+  SUPABASE_URL: optionalUrl,
+  SUPABASE_PUBLISHABLE_KEY: optionalString,
+  SUPABASE_SERVICE_ROLE_KEY: optionalString,
+  SUPABASE_SECRET_KEY: optionalString,
   APP_URL: z.string().url(),
   ALLOWED_ORIGINS: z.string().min(1),
   SECURITY_HASH_SECRET: z.string().min(32),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(30_000).default(8_000),
   PAPER_PRICE_MAX_AGE_SECONDS: z.coerce.number().int().min(1).max(300).default(60),
-  FMP_API_KEY: z.string().min(1).optional(),
-  FMP_BASE_URL: z.string().url().optional(),
-  ALPHA_VANTAGE_API_KEY: z.string().min(1).optional(),
-  ALPHA_VANTAGE_BASE_URL: z.string().url().optional(),
-  MERCADO_PAGO_ACCESS_TOKEN: z.string().min(1).optional(),
-  MERCADO_PAGO_PUBLIC_KEY: z.string().min(1).optional(),
-  MERCADO_PAGO_WEBHOOK_SECRET: z.string().min(1).optional(),
+  FMP_API_KEY: optionalString,
+  FMP_BASE_URL: optionalUrl,
+  BRAPI_TOKEN: optionalString,
+  BRAPI_BASE_URL: optionalUrl,
+  ALPHA_VANTAGE_API_KEY: optionalString,
+  ALPHA_VANTAGE_BASE_URL: optionalUrl,
+  MERCADO_PAGO_ACCESS_TOKEN: optionalString,
+  MERCADO_PAGO_PUBLIC_KEY: optionalString,
+  MERCADO_PAGO_WEBHOOK_SECRET: optionalString,
 }).superRefine((env, context) => {
   if (!env.NEXT_PUBLIC_SUPABASE_URL && !env.SUPABASE_URL) {
     context.addIssue({

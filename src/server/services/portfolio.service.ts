@@ -1,10 +1,10 @@
-import { FmpProvider } from "@/src/server/integrations/fmp.provider";
+import { MarketQuoteProvider } from "@/src/server/integrations/market-quote.provider";
 import { PaperTradingProvider } from "@/src/server/services/paper-trading.service";
 
 const asNumber = (value: number | string) => typeof value === "number" ? value : Number(value);
 
 export class PortfolioService {
-  constructor(private readonly trading = new PaperTradingProvider(), private readonly market = new FmpProvider()) {}
+  constructor(private readonly trading = new PaperTradingProvider(), private readonly market = new MarketQuoteProvider()) {}
 
   async getPortfolio(userId: string) {
     const [account, positions] = await Promise.all([this.trading.getAccount(userId), this.trading.getPositions(userId)]);

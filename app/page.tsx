@@ -11,9 +11,18 @@ type PortfolioSummary = { cashBalance: number; investedValue: number; currentVal
 type PortfolioPosition = { symbol: string; quantity: number | string; average_price: number | string; marketDataAvailable: boolean; quote?: { price: number; currency: string }; investedValue?: number; currentValue?: number; unrealizedPnl?: number; unrealizedPnlPercent?: number };
 type PortfolioData = { summary: PortfolioSummary; positions: PortfolioPosition[] };
 type MarketSearchResult = { symbol?: string; name?: string; exchangeShortName?: string };
-type MarketQuote = { symbol: string; name?: string; price: number; currency: string; changesPercentage?: number; retrievedAt: string; source: "FMP" };
+type MarketQuote = { symbol: string; name?: string; price: number; currency: string; changesPercentage?: number; retrievedAt: string; source: "FMP" | "BRAPI" };
 
 const fmt = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const featuredSymbols = ["AAPL", "MSFT", "NVDA"];
+
+function formatMarketPrice(value: number, currency: string) {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: currency === "BRL" ? "BRL" : "USD",
+    maximumFractionDigits: 2,
+  }).format(value);
+}
 
 const assets = [
   ["PETR4", "Petrobras PN", "R$ 41,72", "+1,84%", "up"],
@@ -682,6 +691,9 @@ function Assets({
   const [explorerLoading, setExplorerLoading] = useState(false);
   const [selectedQuote, setSelectedQuote] = useState<MarketQuote | null>(null);
   const [explorerError, setExplorerError] = useState("");
+  const [featuredQuotes, setFeaturedQuotes] = useState<MarketQuote[]>([]);
+  const [featuredLoading, setFeaturedLoading] = useState(false);
+  const [featuredError, setFeaturedError] = useState(false);
   const [alertForm, setAlertForm] = useState({ ticker: assetList[0]?.[0] ?? "", condition: "acima", value: "" });
 
   const subtitle = page === "portfolio" ? "Acompanhe a composição da sua carteira." : page === "market" ? "Dados de mercado para orientar suas decisões." : "Encontre ativos que combinam com sua estratégia.";
@@ -712,13 +724,42 @@ function Assets({
     const timer = window.setTimeout(() => {
       setExplorerLoading(true); setExplorerError("");
       fetch(`/api/market/search?q=${encodeURIComponent(explorerQuery.trim())}`)
-        .then(async (response) => response.ok ? await response.json() as { data?: MarketSearchResult[] } : null)
-        .then((payload) => { if (active) setExplorerResults(Array.isArray(payload?.data) ? payload.data : []); })
-        .catch(() => { if (active) setExplorerError("Não foi possível carregar as cotações neste momento."); })
+        .then(async (response) => {
+          if (!response.ok) throw new Error("Não foi possível carregar os ativos. Tente novamente em alguns instantes.");
+          return await response.json() as { data?: MarketSearchResult[] };
+        })
+        .then((payload) => { if (active) setExplorerResults(Array.isArray(payload.data) ? payload.data : []); })
+        .catch(() => { if (active) setExplorerError("Não foi possível carregar os ativos. Tente novamente em alguns instantes."); })
         .finally(() => { if (active) setExplorerLoading(false); });
     }, 300);
     return () => { active = false; window.clearTimeout(timer); };
   }, [addOpen, explorerQuery, page]);
+
+  async function loadFeaturedQuotes() {
+    setFeaturedLoading(true);
+    setFeaturedError(false);
+    try {
+      const responses = await Promise.all(featuredSymbols.map(async (symbol) => {
+        const response = await fetch(`/api/market/quote/${symbol}`);
+        if (!response.ok) return null;
+        const quote = await response.json() as MarketQuote;
+        return Number.isFinite(quote.price) && quote.price > 0 ? quote : null;
+      }));
+      setFeaturedQuotes(responses.filter((quote): quote is MarketQuote => quote !== null));
+      setFeaturedError(responses.every((quote) => quote === null));
+    } catch {
+      setFeaturedQuotes([]);
+      setFeaturedError(true);
+    } finally {
+      setFeaturedLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!addOpen || page !== "portfolio" || featuredQuotes.length || featuredLoading || featuredError) return;
+    const timer = window.setTimeout(() => { void loadFeaturedQuotes(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [addOpen, page, featuredQuotes.length, featuredLoading, featuredError]);
 
   async function selectInstrument(symbol: string) {
     setExplorerLoading(true); setExplorerError("");
@@ -729,6 +770,14 @@ function Assets({
       setSelectedQuote(quote); setOrderForm({ symbol: quote.symbol, side: "BUY", quantity: "1" });
     } catch (error) { setExplorerError(error instanceof Error ? error.message : "Não foi possível carregar este ativo."); }
     finally { setExplorerLoading(false); }
+  }
+
+  function openAssetExplorer() {
+    setSelectedQuote(null);
+    setExplorerQuery("");
+    setExplorerResults([]);
+    setExplorerError("");
+    setAddOpen(true);
   }
 
   const searched = listForPage.filter((a) => a[0].toLowerCase().includes(search.toLowerCase()) || a[1].toLowerCase().includes(search.toLowerCase()));
@@ -803,7 +852,7 @@ function Assets({
           <h1>{page === "portfolio" ? "Sua carteira" : "Mercado"}</h1>
           <small>{subtitle}</small>
         </div>
-        <Btn onClick={() => setAddOpen(true)}><Plus size={16} /> {page === "portfolio" ? "Nova ordem simulada" : "Criar alerta"}</Btn>
+        <Btn onClick={page === "portfolio" ? openAssetExplorer : () => setAddOpen(true)}><Plus size={16} /> {page === "portfolio" ? "Adicionar novo ativo" : "Criar alerta"}</Btn>
       </div>
       {page === "portfolio" && (
         <div className="portfoliohero">
@@ -838,23 +887,23 @@ function Assets({
               />
             </div>
           )) : (
-            <div className="empty">{page === "portfolio" ? <WalletCards /> : <Search />}<h3>{page === "portfolio" ? "Sua carteira ainda está vazia." : marketSearching ? "Buscando ativos…" : page === "market" && !search.trim() ? "Pesquise um ativo" : "Nenhum ativo encontrado"}</h3><p>{page === "portfolio" ? "Adicione seu primeiro investimento para começar a acompanhar seu patrimônio." : page === "market" && !search.trim() ? "Use a busca acima para consultar dados de mercado reais." : marketSearchError ? "Não foi possível consultar os dados de mercado agora." : "Tente buscar por outro código ou nome."}</p>{page === "portfolio" && <Btn onClick={() => setAddOpen(true)}><Plus size={15} /> Adicionar investimento</Btn>}</div>
+            <div className="empty">{page === "portfolio" ? <WalletCards /> : <Search />}<h3>{page === "portfolio" ? "Sua carteira ainda está vazia." : marketSearching ? "Buscando ativos…" : page === "market" && !search.trim() ? "Pesquise um ativo" : "Nenhum ativo encontrado"}</h3><p>{page === "portfolio" ? "Adicione seu primeiro investimento para começar a acompanhar seu patrimônio." : page === "market" && !search.trim() ? "Use a busca acima para consultar dados de mercado reais." : marketSearchError ? "Não foi possível consultar os dados de mercado agora." : "Tente buscar por outro código ou nome."}</p>{page === "portfolio" && <Btn onClick={openAssetExplorer}><Plus size={15} /> Adicionar novo ativo</Btn>}</div>
           )}
         </div>
       </section>
 
       {addOpen && (
-        <Modal title={page === "portfolio" ? "Nova ordem de Paper Trading" : "Criar alerta de mercado"} onClose={() => setAddOpen(false)}>
+        <Modal title={page === "portfolio" ? "Adicionar novo ativo" : "Criar alerta de mercado"} onClose={() => setAddOpen(false)}>
           {page === "portfolio" ? (
             selectedQuote ? <form className="modalform" onSubmit={submitOrder}>
               <button className="textbutton" type="button" onClick={() => setSelectedQuote(null)}>← Escolher outro ativo</button>
-              <div className="instrument-summary"><b>{selectedQuote.symbol}</b><span>{selectedQuote.name ?? "Nome indisponível"}</span><strong>{fmt.format(selectedQuote.price)}</strong><em className={(selectedQuote.changesPercentage ?? 0) >= 0 ? "gain" : "loss"}>{selectedQuote.changesPercentage === undefined ? "Variação indisponível" : `${selectedQuote.changesPercentage >= 0 ? "+" : ""}${selectedQuote.changesPercentage.toFixed(2).replace(".", ",")}%`}</em><small>Fonte FMP · atualização {new Date(selectedQuote.retrievedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</small></div>
+              <div className="instrument-summary"><b>{selectedQuote.symbol}</b><span>{selectedQuote.name ?? "Nome indisponível"}</span><strong>{formatMarketPrice(selectedQuote.price, selectedQuote.currency)}</strong><em className={(selectedQuote.changesPercentage ?? 0) >= 0 ? "gain" : "loss"}>{selectedQuote.changesPercentage === undefined ? "Variação indisponível" : `${selectedQuote.changesPercentage >= 0 ? "+" : ""}${selectedQuote.changesPercentage.toFixed(2).replace(".", ",")}%`}</em><small>Fonte {selectedQuote.source} · atualização {new Date(selectedQuote.retrievedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</small></div>
               <p className="modalnote">Regras de lote e mercado fracionário não foram fornecidas pela fonte para este ativo. A compra simulada usa a quantidade inteira informada.</p>
               <label>Quantidade<input required type="number" min="1" step="1" inputMode="numeric" value={orderForm.quantity} onChange={(e) => setOrderForm({ ...orderForm, quantity: e.target.value })} /></label>
-              <div className="order-total"><span>Valor estimado</span><b>{fmt.format(Number(orderForm.quantity || 0) * selectedQuote.price)}</b></div>
+              <div className="order-total"><span>Valor estimado</span><b>{formatMarketPrice(Number(orderForm.quantity || 0) * selectedQuote.price, selectedQuote.currency)}</b></div>
               <p className="modalnote">OPERAÇÃO SIMULADA: o preço será confirmado pelo servidor antes do registro. Nenhuma ordem real será enviada à B3.</p>
               <Btn type="submit" disabled={orderPending}>{orderPending ? "Confirmando..." : "Confirmar investimento simulado"}</Btn>
-            </form> : <div className="explorer"><label>Buscar empresa ou ticker<input autoFocus value={explorerQuery} onChange={(e) => setExplorerQuery(e.target.value)} placeholder="Ex.: PETR4 ou Petrobras" /></label>{explorerLoading && <p className="modalnote">Buscando ativos e cotações…</p>}{explorerError && <p className="formerror">{explorerError}</p>}{explorerQuery.trim().length < 2 ? <p className="modalnote">Pesquise por ticker ou empresa para consultar ativos reais.</p> : explorerResults.length ? <div className="instrument-list">{explorerResults.slice(0, 8).filter((item): item is Required<Pick<MarketSearchResult, "symbol">> & MarketSearchResult => Boolean(item.symbol)).map((item) => <button type="button" key={item.symbol} onClick={() => selectInstrument(item.symbol)}><b>{item.symbol}</b><span>{item.name ?? item.exchangeShortName ?? "Nome indisponível"}</span><small>Ver cotação</small></button>)}</div> : !explorerLoading && <p className="modalnote">Nenhum ativo encontrado para sua busca.</p>}</div>
+            </form> : <div className="explorer"><label>Pesquisar empresa ou ativo<input autoFocus value={explorerQuery} onChange={(e) => setExplorerQuery(e.target.value)} placeholder="Pesquisar empresa ou ativo..." /></label>{explorerQuery.trim().length < 2 && <section className="featured-assets"><div><h4>Ativos em destaque</h4><p>Ativos disponíveis para consulta com dados atuais de mercado.</p></div>{featuredLoading ? <div className="instrument-skeletons" aria-label="Carregando ativos em destaque"><span /><span /><span /></div> : featuredQuotes.length ? <div className="instrument-list">{featuredQuotes.map((quote) => <button type="button" key={quote.symbol} onClick={() => { setSelectedQuote(quote); setOrderForm({ symbol: quote.symbol, side: "BUY", quantity: "1" }); }}><b>{quote.symbol}</b><span>{quote.name ?? "Nome indisponível"}</span><strong>{formatMarketPrice(quote.price, quote.currency)}</strong><small className={quote.changesPercentage === undefined ? "" : quote.changesPercentage >= 0 ? "gain" : "loss"}>{quote.changesPercentage === undefined ? "Variação indisponível" : `${quote.changesPercentage >= 0 ? "+" : ""}${quote.changesPercentage.toFixed(2).replace(".", ",")}%`}</small></button>)}</div> : featuredError ? <div className="explorer-feedback"><p>Não foi possível carregar os ativos.</p><small>Tente novamente em alguns instantes.</small><button className="textbutton" type="button" onClick={() => void loadFeaturedQuotes()}>Tentar novamente</button></div> : null}</section>}{explorerLoading && <p className="modalnote">Buscando ativos…</p>}{explorerError && <div className="explorer-feedback error"><p>{explorerError}</p><button className="textbutton" type="button" onClick={() => setExplorerQuery((query) => query.trim())}>Tentar novamente</button></div>}{explorerQuery.trim().length >= 2 && explorerResults.length ? <section><h4 className="results-title">Resultados</h4><div className="instrument-list">{explorerResults.slice(0, 10).filter((item): item is Required<Pick<MarketSearchResult, "symbol">> & MarketSearchResult => Boolean(item.symbol)).map((item) => <button type="button" key={item.symbol} onClick={() => selectInstrument(item.symbol)}><b>{item.symbol}</b><span>{item.name ?? item.exchangeShortName ?? "Nome indisponível"}</span><small>Ver cotação</small></button>)}</div></section> : explorerQuery.trim().length >= 2 && !explorerLoading && !explorerError && <div className="explorer-feedback"><p>Nenhum ativo encontrado</p><small>Não encontramos ativos correspondentes à sua pesquisa.</small><button className="textbutton" type="button" onClick={() => setExplorerQuery("")}>Limpar pesquisa</button></div>}</div>
           ) : (
             <form className="modalform" onSubmit={submitAlert}>
               <label>Ativo

@@ -1,13 +1,13 @@
 import { createAdminSupabaseClient } from "@/src/lib/supabase/admin";
 import { Errors } from "@/src/server/errors/app-error";
-import { FmpProvider } from "@/src/server/integrations/fmp.provider";
+import { MarketQuoteProvider } from "@/src/server/integrations/market-quote.provider";
 import type { z } from "zod";
 import type { createOrderSchema } from "@/src/server/schemas/trading.schema";
 
 type CreateOrder = z.infer<typeof createOrderSchema>;
 
 export class PaperTradingProvider {
-  constructor(private readonly market = new FmpProvider()) {}
+  constructor(private readonly market = new MarketQuoteProvider()) {}
 
   async getAccount(userId: string) {
     const { data, error } = await createAdminSupabaseClient().from("paper_accounts").select("id, currency, initial_balance, cash_balance, reserved_balance, created_at, updated_at").eq("user_id", userId).maybeSingle();

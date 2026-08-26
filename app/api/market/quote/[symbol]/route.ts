@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { apiError, apiJson, apiOptions } from "@/src/server/http/api-response";
-import { FmpProvider } from "@/src/server/integrations/fmp.provider";
+import { MarketQuoteProvider } from "@/src/server/integrations/market-quote.provider";
 import { symbolParamsSchema } from "@/src/server/schemas/market.schema";
 import { enforceRateLimit } from "@/src/server/security/request-security";
 
@@ -10,6 +10,6 @@ export async function GET(request: NextRequest, context: { params: Promise<{ sym
   try {
     const { symbol } = symbolParamsSchema.parse(await context.params);
     await enforceRateLimit(request, "market:quote", symbol, 60, 60);
-    return apiJson(await new FmpProvider().quote(symbol), request);
+    return apiJson(await new MarketQuoteProvider().quote(symbol), request);
   } catch (error) { return apiError(error, request); }
 }

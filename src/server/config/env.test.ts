@@ -29,4 +29,17 @@ describe("parseServerEnv", () => {
       SUPABASE_PUBLISHABLE_KEY: "publishable-test-key",
     })).toThrow();
   });
+
+  it("treats blank optional provider credentials as unconfigured", () => {
+    const env = parseServerEnv({
+      ...secureEnv,
+      SUPABASE_URL: "https://project.supabase.co",
+      SUPABASE_PUBLISHABLE_KEY: "publishable-test-key",
+      BRAPI_TOKEN: "",
+      MERCADO_PAGO_ACCESS_TOKEN: "",
+    });
+
+    expect(env.BRAPI_TOKEN).toBeUndefined();
+    expect(env.MERCADO_PAGO_ACCESS_TOKEN).toBeUndefined();
+  });
 });
