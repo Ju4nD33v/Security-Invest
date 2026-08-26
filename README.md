@@ -4,6 +4,12 @@ Plataforma de análise e **Paper Trading**. Não é corretora, não envia ordens
 
 > Paper Trading é simulação. Dados e insights são informativos e educacionais, não recomendação de investimento.
 
+## Acesso online
+
+O Secure Invest está hospedado na Vercel e disponível em [security-invest.vercel.app](https://security-invest.vercel.app/).
+
+O deployment público está funcional. Para utilizar recursos que dependem de provedores externos, como dados de mercado e pagamentos, as respectivas variáveis de ambiente devem permanecer configuradas na Vercel.
+
 ## Arquitetura
 
 Next.js 16 + React 19 + TypeScript; Route Handlers REST em `app/api`; serviços em `src/server`; Supabase Auth/PostgreSQL/RLS; FMP para mercado/fundamentos; Alpha Vantage para técnico/sentimento; Mercado Pago para Pix e webhook.
