@@ -1,8 +1,12 @@
 import { z } from "zod";
 
 const serverEnvSchema = z.object({
-  NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
-  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
+  NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().min(1).optional(),
+  // Legacy aliases kept server-side to make existing deployments configurable
+  // without ever exposing a secret to the browser.
+  SUPABASE_URL: z.string().url().optional(),
+  SUPABASE_PUBLISHABLE_KEY: z.string().min(1).optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
   SUPABASE_SECRET_KEY: z.string().min(1).optional(),
   APP_URL: z.string().url(),
@@ -18,17 +22,45 @@ const serverEnvSchema = z.object({
   MERCADO_PAGO_ACCESS_TOKEN: z.string().min(1).optional(),
   MERCADO_PAGO_PUBLIC_KEY: z.string().min(1).optional(),
   MERCADO_PAGO_WEBHOOK_SECRET: z.string().min(1).optional(),
-}).refine((env) => Boolean(env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SECRET_KEY), {
-  message: "SUPABASE_SERVICE_ROLE_KEY or SUPABASE_SECRET_KEY is required.",
-});
+}).superRefine((env, context) => {
+  if (!env.NEXT_PUBLIC_SUPABASE_URL && !env.SUPABASE_URL) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["NEXT_PUBLIC_SUPABASE_URL"],
+      message: "NEXT_PUBLIC_SUPABASE_URL or SUPABASE_URL is required.",
+    });
+  }
+  if (!env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY && !env.SUPABASE_PUBLISHABLE_KEY) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"],
+      message: "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY or SUPABASE_PUBLISHABLE_KEY is required.",
+    });
+  }
+  if (!env.SUPABASE_SERVICE_ROLE_KEY && !env.SUPABASE_SECRET_KEY) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["SUPABASE_SECRET_KEY"],
+      message: "SUPABASE_SERVICE_ROLE_KEY or SUPABASE_SECRET_KEY is required.",
+    });
+  }
+}).transform((env) => ({
+  ...env,
+  NEXT_PUBLIC_SUPABASE_URL: env.NEXT_PUBLIC_SUPABASE_URL ?? env.SUPABASE_URL!,
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? env.SUPABASE_PUBLISHABLE_KEY!,
+}));
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
 
 let cachedEnv: ServerEnv | undefined;
 
+export function parseServerEnv(env: Record<string, string | undefined>): ServerEnv {
+  return serverEnvSchema.parse(env);
+}
+
 export function getServerEnv(): ServerEnv {
   if (!cachedEnv) {
-    cachedEnv = serverEnvSchema.parse(process.env);
+    cachedEnv = parseServerEnv(process.env);
   }
   return cachedEnv;
 }
