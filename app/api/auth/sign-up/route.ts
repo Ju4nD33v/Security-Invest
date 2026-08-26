@@ -19,7 +19,12 @@ export async function POST(request: NextRequest) {
       email: input.email,
       password: input.password,
       options: {
-        data: { full_name: input.fullName, phone: input.phone },
+        data: {
+          first_name: input.firstName,
+          last_name: input.lastName,
+          full_name: `${input.firstName} ${input.lastName}`,
+          phone: input.phone,
+        },
         emailRedirectTo: `${getServerEnv().APP_URL}/auth/callback`,
       },
     });

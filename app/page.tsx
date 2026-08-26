@@ -6,6 +6,7 @@ import { FormEvent, useState, useRef, useContext, createContext, Dispatch, SetSt
 
 type Screen = "home" | "login" | "signup" | "recover" | "dashboard" | "portfolio" | "investments" | "market" | "reports" | "profile" | "settings";
 type ProfileData = { name: string; email: string; phone: string; avatarUrl: string };
+type AuthenticatedUser = { fullName: string; email: string | null; phone: string | null; avatarUrl: string | null };
 type PortfolioSummary = { cashBalance: number; investedValue: number; currentValue: number; totalEquity: number; unrealizedPnl: number; unrealizedPnlPercent: number; positionCount: number };
 type PortfolioPosition = { symbol: string; quantity: number | string; average_price: number | string; marketDataAvailable: boolean; quote?: { price: number; currency: string }; investedValue?: number; currentValue?: number; unrealizedPnl?: number; unrealizedPnlPercent?: number };
 type PortfolioData = { summary: PortfolioSummary; positions: PortfolioPosition[] };
@@ -310,7 +311,7 @@ function Auth({ screen, go }: { screen: Screen; go: (s: Screen) => void }) {
     const endpoint = recover ? "/api/auth/forgot-password" : isSign ? "/api/auth/sign-up" : "/api/auth/sign-in";
     const password = String(form.get("password") ?? "");
     if (isSign && password !== String(form.get("passwordConfirmation") ?? "")) { showToast("As senhas não coincidem"); return; }
-    const body = recover ? { email: form.get("email") } : isSign ? { fullName: form.get("fullName"), email: form.get("email"), password } : { email: form.get("email"), password };
+    const body = recover ? { email: form.get("email") } : isSign ? { firstName: form.get("firstName"), lastName: form.get("lastName"), email: form.get("email"), password } : { email: form.get("email"), password };
     setLoading(true);
     try {
       const response = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -348,7 +349,7 @@ function Auth({ screen, go }: { screen: Screen; go: (s: Screen) => void }) {
             <form onSubmit={submit}>
               {isSign && (
                 <>
-                  <label>Nome completo<input name="fullName" required placeholder="Como devemos chamar você?" /></label>
+                  <div className="namefields"><label>Nome<input name="firstName" required placeholder="Seu nome" /></label><label>Sobrenome<input name="lastName" required placeholder="Seu sobrenome" /></label></div>
                 </>
               )}
               <label>E-mail<input name="email" required type="email" placeholder="voce@email.com" /></label>
@@ -397,7 +398,7 @@ function Dashboard({ page, go }: { page: Screen; go: (s: Screen) => void }) {
   const [unread, setUnread] = useState(true);
   const [assetList] = useState<string[][]>(() => assets.map((a) => [...a, tagOf(a[0])]));
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
-  const [profile, setProfile] = useState<ProfileData>({ name: "Teste da Silva", email: "teste@gmail.com", phone: "(11) 99999-9999", avatarUrl: "" });
+  const [profile, setProfile] = useState<ProfileData>({ name: "", email: "", phone: "", avatarUrl: "" });
   const [portfolio, setPortfolio] = useState<PortfolioData | null>(null);
 
   async function refreshPortfolio() {
@@ -413,6 +414,14 @@ function Dashboard({ page, go }: { page: Screen; go: (s: Screen) => void }) {
       .then(async (response) => response.ok ? await response.json() as PortfolioData : null)
       .then((payload) => { if (active && payload?.summary && Array.isArray(payload.positions)) setPortfolio(payload); })
       .catch(() => undefined);
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/auth/session").then(async (response) => response.ok ? await response.json() as { user?: AuthenticatedUser } : null).then((payload) => {
+      if (active && payload?.user) setProfile({ name: payload.user.fullName, email: payload.user.email ?? "", phone: payload.user.phone ?? "", avatarUrl: payload.user.avatarUrl ?? "" });
+    }).catch(() => undefined);
     return () => { active = false; };
   }, []);
 
@@ -486,7 +495,7 @@ function Dashboard({ page, go }: { page: Screen; go: (s: Screen) => void }) {
         </header>
         <AnimatePresence mode="wait">
           <motion.div key={page} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }} transition={{ duration: .22 }} className="content">
-            {page === "dashboard" ? <Overview go={go} assetList={assetList} portfolio={portfolio?.summary ?? null} /> :
+            {page === "dashboard" ? <Overview go={go} profile={profile} portfolio={portfolio} /> :
               page === "investments" ? <Insights /> :
               page === "portfolio" || page === "market" ? <Assets page={page} assetList={assetList} search={search} favorites={favorites} setFavorites={setFavorites} portfolio={portfolio} refreshPortfolio={refreshPortfolio} /> :
               page === "profile" ? <Profile profile={profile} setProfile={setProfile} /> :
@@ -510,7 +519,7 @@ function Dashboard({ page, go }: { page: Screen; go: (s: Screen) => void }) {
 }
 
 /* ---------- Overview (dashboard home) ---------- */
-function Overview({ go, assetList, portfolio }: { go: (s: Screen) => void; assetList: string[][]; portfolio: PortfolioSummary | null }) {
+function Overview({ go, profile, portfolio }: { go: (s: Screen) => void; profile: ProfileData; portfolio: PortfolioData | null }) {
   const showToast = useToast();
   const [hideBalance, setHideBalance] = useState(false);
   const [range, setRange] = useState<"6M" | "1A" | "Máx.">("6M");
@@ -533,7 +542,7 @@ function Overview({ go, assetList, portfolio }: { go: (s: Screen) => void; asset
     <>
       <div className="ai-notice" role="note"><ShieldCheck size={20} /><div><b>PAPER TRADING · SALDO VIRTUAL</b><p>Esta carteira é uma simulação. Nenhuma ordem representa compra ou venda real de ativos.</p></div></div>
       <div className="pagehead">
-        <div><p>TERÇA-FEIRA, 04 DE AGOSTO</p><h1>Olá, Olívia <span>↗</span></h1><small>Acompanhe seus investimentos hoje.</small></div>
+        <div><p>VISÃO DA SUA CARTEIRA</p><h1>Olá, {profile.name.split(" ")[0] || "investidor(a)"} <span>↗</span></h1><small>Acompanhe seus investimentos hoje.</small></div>
         <Btn onClick={() => go("investments")}>Ver oportunidades <ArrowUpRight size={16} /></Btn>
       </div>
       <div className="metrics">
@@ -545,14 +554,14 @@ function Overview({ go, assetList, portfolio }: { go: (s: Screen) => void; asset
                 {hideBalance ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </span>
-            <h2>{hideBalance ? "R$ ••••••" : portfolio ? fmt.format(portfolio.totalEquity) : "—"}</h2>
-            <b><TrendingUp size={15} /> {portfolio ? `${portfolio.unrealizedPnlPercent >= 0 ? "+" : ""}${portfolio.unrealizedPnlPercent.toFixed(2).replace(".", ",")}%` : "—"} <small>resultado não realizado</small></b>
+            <h2>{hideBalance ? "R$ ••••••" : portfolio ? fmt.format(portfolio.summary.totalEquity) : "—"}</h2>
+            <b><TrendingUp size={15} /> {portfolio ? `${portfolio.summary.unrealizedPnlPercent >= 0 ? "+" : ""}${portfolio.summary.unrealizedPnlPercent.toFixed(2).replace(".", ",")}%` : "—"} <small>resultado não realizado</small></b>
           </div>
           <div className="sparkbars">▁▃▂▅▃▆▅▇▆</div>
         </div>
-        <Metric title="P&L não realizado" value={hideBalance ? "R$ ••••••" : portfolio ? fmt.format(portfolio.unrealizedPnl) : "—"} note="Dados de mercado disponíveis" green />
-        <Metric title="Posições simuladas" value={portfolio ? String(portfolio.positionCount) : String(assetList.length)} note="Saldo virtual separado" />
-        <Metric title="Proventos previstos" value={hideBalance ? "R$ ••••" : "R$ 438,26"} note="Próximos 30 dias" />
+        <Metric title="P&L não realizado" value={hideBalance ? "R$ ••••••" : portfolio ? fmt.format(portfolio.summary.unrealizedPnl) : "—"} note="Dados de mercado disponíveis" green />
+        <Metric title="Posições simuladas" value={portfolio ? String(portfolio.summary.positionCount) : "—"} note="Saldo virtual separado" />
+        <Metric title="Valor investido" value={hideBalance ? "R$ ••••" : portfolio ? fmt.format(portfolio.summary.investedValue) : "—"} note="Somente posições com cotação" />
       </div>
       <div className="dashboardgrid">
         <section className="panel performance">
@@ -592,7 +601,7 @@ function Overview({ go, assetList, portfolio }: { go: (s: Screen) => void; asset
             <div><h3>Suas posições</h3><p>Ativos em destaque</p></div>
             <button className="textbutton" onClick={() => go("portfolio")}>Ver carteira</button>
           </div>
-          {assetList.slice(0, 3).map((a) => <AssetRow key={a[0]} a={a} />)}
+          {portfolio?.positions.length ? portfolio.positions.slice(0, 3).map((position) => <AssetRow key={position.symbol} a={[position.symbol, `${position.quantity} cota(s)`, position.quote ? fmt.format(position.quote.price) : "Cotação indisponível", "—", "up"]} />) : <div className="empty compact"><WalletCards /><h3>Sua carteira ainda está vazia.</h3><p>Adicione seu primeiro investimento para começar a acompanhar.</p><Btn onClick={() => go("portfolio")}><Plus size={15} /> Adicionar investimento</Btn></div>}
         </section>
         <section className="panel news">
           <div className="panelhead"><div><h3>Radar do mercado</h3><p>O que move a bolsa hoje</p></div><BookOpen size={19} /></div>
@@ -653,7 +662,7 @@ function Assets({
   const portfolioAssets = page === "portfolio" && portfolio ? portfolio.positions.filter((position) => position.marketDataAvailable && position.quote).map((position) => {
     const variation = position.unrealizedPnlPercent ?? 0;
     return [position.symbol, `${Number(position.quantity)} cota(s) · PM ${fmt.format(Number(position.average_price))}`, fmt.format(position.quote!.price), `${variation >= 0 ? "+" : ""}${variation.toFixed(2).replace(".", ",")}%`, variation >= 0 ? "up" : "down", tagOf(position.symbol)];
-  }) : assetList;
+  }) : page === "portfolio" ? [] : assetList;
   const marketAssets = search.trim() ? marketResults.filter((result): result is Required<Pick<MarketSearchResult, "symbol">> & MarketSearchResult => Boolean(result.symbol)).map((result) => [result.symbol!, result.name ?? result.exchangeShortName ?? "Ativo listado", "Consulte a cotação", "—", "up", tagOf(result.symbol!)]) : [];
   const listForPage = page === "market" ? marketAssets : portfolioAssets;
 
@@ -778,7 +787,7 @@ function Assets({
               />
             </div>
           )) : (
-            <div className="empty"><Search /><h3>{marketSearching ? "Buscando ativos…" : page === "market" && !search.trim() ? "Pesquise um ativo" : "Nenhum ativo encontrado"}</h3><p>{page === "market" && !search.trim() ? "Use a busca acima para consultar dados de mercado reais." : marketSearchError ? "Não foi possível consultar os dados de mercado agora." : "Tente buscar por outro código ou nome."}</p></div>
+            <div className="empty">{page === "portfolio" ? <WalletCards /> : <Search />}<h3>{page === "portfolio" ? "Sua carteira ainda está vazia." : marketSearching ? "Buscando ativos…" : page === "market" && !search.trim() ? "Pesquise um ativo" : "Nenhum ativo encontrado"}</h3><p>{page === "portfolio" ? "Adicione seu primeiro investimento para começar a acompanhar seu patrimônio." : page === "market" && !search.trim() ? "Use a busca acima para consultar dados de mercado reais." : marketSearchError ? "Não foi possível consultar os dados de mercado agora." : "Tente buscar por outro código ou nome."}</p>{page === "portfolio" && <Btn onClick={() => setAddOpen(true)}><Plus size={15} /> Adicionar investimento</Btn>}</div>
           )}
         </div>
       </section>
@@ -964,13 +973,19 @@ function Profile({ profile, setProfile }: { profile: ProfileData; setProfile: Di
   const showToast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
 
-  function save(e?: FormEvent) {
+  async function save(e?: FormEvent) {
     e?.preventDefault();
     if (!profile.name.trim() || !profile.email.trim()) {
       showToast("Preencha nome e e-mail antes de salvar");
       return;
     }
-    showToast("Alterações salvas com sucesso");
+    const [firstName, ...lastNameParts] = profile.name.trim().split(/\s+/);
+    if (!lastNameParts.length) { showToast("Informe nome e sobrenome"); return; }
+    try {
+      const response = await fetch("/api/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ firstName, lastName: lastNameParts.join(" "), phone: profile.phone || null }) });
+      if (!response.ok) throw new Error("Não foi possível salvar o perfil.");
+      showToast("Alterações salvas com sucesso");
+    } catch (error) { showToast(error instanceof Error ? error.message : "Não foi possível salvar o perfil."); }
   }
 
   function onPhoto(e: React.ChangeEvent<HTMLInputElement>) {
@@ -1135,6 +1150,16 @@ function Reports() {
 /* ---------- App ---------- */
 function AppInner() {
   const [screen, setScreen] = useState<Screen>("home");
+  const [checkingSession, setCheckingSession] = useState(true);
+  useEffect(() => {
+    let active = true;
+    fetch("/api/auth/session")
+      .then((response) => { if (active && response.ok) setScreen("dashboard"); })
+      .catch(() => undefined)
+      .finally(() => { if (active) setCheckingSession(false); });
+    return () => { active = false; };
+  }, []);
+  if (checkingSession) return <main className="app-loading" aria-live="polite">Carregando sua sessão…</main>;
   if (screen === "home") return <Landing go={setScreen} />;
   if (["login", "signup", "recover"].includes(screen)) return <Auth screen={screen} go={setScreen} />;
   return <Dashboard page={screen} go={setScreen} />;

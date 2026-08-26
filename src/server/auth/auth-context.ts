@@ -6,6 +6,11 @@ export type AuthContext = {
   userId: string;
   email: string | null;
   role: "USER" | "ADMIN";
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  phone: string | null;
+  avatarUrl: string | null;
 };
 
 export async function requireUser(): Promise<AuthContext> {
@@ -16,13 +21,22 @@ export async function requireUser(): Promise<AuthContext> {
   const admin = createAdminSupabaseClient();
   const { data: profile, error: profileError } = await admin
     .from("profiles")
-    .select("role, account_status")
+    .select("role, account_status, first_name, last_name, full_name, phone, avatar_url")
     .eq("id", user.id)
     .maybeSingle();
   if (profileError || !profile) throw Errors.unauthorized();
   if (profile.account_status !== "ACTIVE") throw Errors.suspended();
 
-  return { userId: user.id, email: user.email ?? null, role: profile.role as AuthContext["role"] };
+  return {
+    userId: user.id,
+    email: user.email ?? null,
+    role: profile.role as AuthContext["role"],
+    firstName: profile.first_name,
+    lastName: profile.last_name,
+    fullName: profile.full_name,
+    phone: profile.phone,
+    avatarUrl: profile.avatar_url,
+  };
 }
 
 export async function requireAdmin() {
