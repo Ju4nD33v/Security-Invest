@@ -2,14 +2,21 @@ import { BrapiProvider } from "@/src/server/integrations/brapi.provider";
 import type { BrapiMarketListItem } from "@/src/server/integrations/brapi.provider";
 import type { MarketQuote } from "@/src/server/integrations/market-quote.provider";
 
-function normalizeQuote(item: BrapiMarketListItem): MarketQuote {
+function absoluteChangeFromPercentage(close: number, percentage: number) {
+  const multiplier = 1 + percentage / 100;
+  if (multiplier <= 0) return 0;
+  return close - close / multiplier;
+}
+
+export function normalizeMarketListQuote(item: BrapiMarketListItem, retrievedAt = new Date().toISOString()): MarketQuote {
   return {
     symbol: item.stock,
     price: item.close,
     currency: "BRL",
+    change: absoluteChangeFromPercentage(item.close, item.change),
     changesPercentage: item.change,
     name: item.name,
-    retrievedAt: new Date().toISOString(),
+    retrievedAt,
     source: "BRAPI",
   };
 }
@@ -29,9 +36,9 @@ export class MarketHighlightsService {
       this.brapi.getMarketMovers("desc"),
       this.brapi.getMarketMovers("asc"),
     ]);
-    const rising = risingRecords.filter(isPrincipalStock).map(normalizeQuote)
+    const rising = risingRecords.filter(isPrincipalStock).map((item) => normalizeMarketListQuote(item))
       .filter((quote) => (quote.changesPercentage ?? 0) >= 0).slice(0, 5);
-    const falling = fallingRecords.filter(isPrincipalStock).map(normalizeQuote)
+    const falling = fallingRecords.filter(isPrincipalStock).map((item) => normalizeMarketListQuote(item))
       .filter((quote) => (quote.changesPercentage ?? 0) < 0).slice(0, 5);
     return {
       rising,
