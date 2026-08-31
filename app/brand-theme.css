@@ -249,7 +249,18 @@ textarea::placeholder {
 }
 
 .hero {
+  position: relative;
+  isolation: isolate;
   max-width: 1040px;
+  background: transparent;
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0 calc(50% - 50vw);
+  pointer-events: none;
   background:
     radial-gradient(ellipse at 50% 0, rgba(164, 122, 69, 0.16), transparent 58%),
     linear-gradient(180deg, rgba(13, 17, 24, 0.72), transparent 72%);
