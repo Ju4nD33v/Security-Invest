@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowDownRight, ArrowUpRight, Bell, BookOpen, Bot, BrainCircuit, BriefcaseBusiness, ChevronDown, CircleHelp, Eye, EyeOff, FileBarChart, Globe2, LayoutDashboard, LockKeyhole, LogOut, Menu, Moon, Plus, Search, Send, Settings as SettingsIcon, ShieldCheck, SlidersHorizontal, Sparkles, Sun, TrendingDown, TrendingUp, UserRound, WalletCards, X } from "lucide-react";
 import Image from "next/image";
 import { FormEvent, useState, useRef, useContext, createContext, Dispatch, SetStateAction, useEffect } from "react";
+import { MARKET_HISTORY_PERIOD_LABELS, type MarketHistory, type MarketHistoryPeriod } from "@/src/shared/market-history";
 import { getPasswordValidationErrors, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/src/shared/password-policy";
 
 type Screen = "home" | "login" | "signup" | "recover" | "dashboard" | "portfolio" | "investments" | "market" | "reports" | "profile" | "settings";
@@ -170,11 +171,102 @@ function Stat({ label, value, change }: { label: string; value: string; change: 
   return <div className="stat"><small>{label}</small><strong>{value}</strong><span className="positive"><ArrowUpRight size={13} />{change}</span></div>;
 }
 
-function MarketMovers({ highlights, loading, error, onRetry, onSelect, compact = false }: { highlights: MarketHighlights | null; loading: boolean; error: boolean; onRetry: () => void; onSelect?: (quote: MarketQuote) => void; compact?: boolean }) {
+function MarketMovers({ highlights, loading, error, onRetry, onSelect, selectedSymbol, compact = false }: { highlights: MarketHighlights | null; loading: boolean; error: boolean; onRetry: () => void; onSelect?: (quote: MarketQuote) => void; selectedSymbol?: string; compact?: boolean }) {
   if (loading) return <div className={`movers ${compact ? "compact" : ""}`} aria-label="Carregando variações do mercado"><div className="mover-skeleton" /><div className="mover-skeleton" /></div>;
   if (error || !highlights) return <div className="explorer-feedback error"><p>Não foi possível carregar as variações do mercado.</p><small>Tente novamente em alguns instantes.</small><button className="textbutton" type="button" onClick={onRetry}>Tentar novamente</button></div>;
-  const renderList = (quotes: MarketQuote[], title: string, tone: "gain" | "loss") => <section className={`mover-panel ${tone}`}><header><div><h3>{title}</h3><p>Entre os ativos monitorados</p></div><span>{tone === "gain" ? <TrendingUp size={16} /> : <TrendingDown size={16} />}</span></header>{quotes.length ? <div className="mover-list">{quotes.map((quote) => <button type="button" key={quote.symbol} onClick={() => onSelect?.(quote)} disabled={!onSelect}><span className="ticker">{quote.symbol.slice(0, 2)}</span><div><b>{quote.symbol}</b><small>{quote.name ?? "Nome indisponível"}</small></div><strong>{formatMarketPrice(quote.price, quote.currency)}</strong><em>{quote.changesPercentage === undefined ? "—" : `${quote.changesPercentage >= 0 ? "+" : ""}${quote.changesPercentage.toFixed(2).replace(".", ",")}%`}</em></button>)}</div> : <p className="mover-empty">Informação indisponível.</p>}</section>;
+  const renderList = (quotes: MarketQuote[], title: string, tone: "gain" | "loss") => {
+    const largestMove = Math.max(1, ...quotes.map((quote) => Math.abs(quote.changesPercentage ?? 0)));
+    return <section className={`mover-panel ${tone}`}><header><div><h3>{title}</h3><p>Clique em uma ação para abrir o histórico</p></div><span>{tone === "gain" ? <TrendingUp size={16} /> : <TrendingDown size={16} />}</span></header>{quotes.length ? <div className="mover-list">{quotes.map((quote) => <button type="button" key={quote.symbol} className={selectedSymbol === quote.symbol ? "selected" : ""} onClick={() => onSelect?.(quote)} disabled={!onSelect} aria-pressed={onSelect ? selectedSymbol === quote.symbol : undefined}><span className="ticker">{quote.symbol.slice(0, 2)}</span><div className="mover-identity"><b>{quote.symbol}</b><small>{quote.name ?? "Nome indisponível"}</small><span className="mover-bar" aria-hidden="true"><i style={{ width: `${Math.max(6, (Math.abs(quote.changesPercentage ?? 0) / largestMove) * 100)}%` }} /></span></div><strong>{formatMarketPrice(quote.price, quote.currency)}</strong><em>{quote.changesPercentage === undefined ? "—" : `${quote.changesPercentage >= 0 ? "+" : ""}${quote.changesPercentage.toFixed(2).replace(".", ",")}%`}</em></button>)}</div> : <p className="mover-empty">Informação indisponível.</p>}</section>;
+  };
   return <section className={`movers ${compact ? "compact" : ""}`}><div className="movers-heading"><div><h2>{compact ? "Variações do mercado" : "Movimentações do mercado"}</h2><p>Dados BRAPI atualizados às {new Date(highlights.retrievedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} · acompanhamento de {highlights.monitoredSymbols} ativos B3.</p></div></div><div className="movers-grid">{renderList(highlights.rising, "Em alta", "gain")}{renderList(highlights.falling, "Em baixa", "loss")}</div></section>;
+}
+
+function formatHistoryDate(date: string, period: MarketHistoryPeriod) {
+  return new Intl.DateTimeFormat("pt-BR", period === "1y" ? { month: "short", year: "2-digit" } : { day: "2-digit", month: "2-digit" }).format(new Date(date));
+}
+
+function MarketHistoryChart({ quote }: { quote: MarketQuote | null }) {
+  const [period, setPeriod] = useState<MarketHistoryPeriod>("1mo");
+  const [reloadKey, setReloadKey] = useState(0);
+  const requestKey = quote ? `${quote.symbol}:${period}:${reloadKey}` : "";
+  const [requestState, setRequestState] = useState<{ key: string; history: MarketHistory | null; error: string }>({ key: "", history: null, error: "" });
+  const loading = Boolean(quote && requestState.key !== requestKey);
+  const history = requestState.key === requestKey ? requestState.history : null;
+  const error = requestState.key === requestKey ? requestState.error : "";
+
+  useEffect(() => {
+    if (!quote) return;
+    const controller = new AbortController();
+    fetch(`/api/market/history/${encodeURIComponent(quote.symbol)}?period=${period}`, { signal: controller.signal })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => null) as MarketHistory | { error?: { message?: string } } | null;
+        if (!response.ok || !payload || !("points" in payload) || !Array.isArray(payload.points)) {
+          throw new Error(payload && "error" in payload ? payload.error?.message : "Histórico indisponível.");
+        }
+        setRequestState({ key: requestKey, history: payload, error: "" });
+      })
+      .catch((requestError: unknown) => {
+        if (requestError instanceof DOMException && requestError.name === "AbortError") return;
+        setRequestState({ key: requestKey, history: null, error: requestError instanceof Error ? requestError.message : "Não foi possível carregar o histórico." });
+      });
+    return () => controller.abort();
+  }, [quote, period, reloadKey, requestKey]);
+
+  if (!quote) return <section className="panel market-history empty"><TrendingUp /><h3>Selecione uma ação</h3><p>Escolha uma das ações em alta ou em queda para visualizar o histórico.</p></section>;
+
+  const points = history?.points ?? [];
+  const prices = points.map((point) => point.close);
+  const firstPrice = prices[0] ?? quote.price;
+  const lastPrice = prices.at(-1) ?? quote.price;
+  const lowestPrice = prices.length ? Math.min(...prices) : quote.price;
+  const highestPrice = prices.length ? Math.max(...prices) : quote.price;
+  const periodChange = firstPrice > 0 ? ((lastPrice - firstPrice) / firstPrice) * 100 : 0;
+  const isPositive = periodChange >= 0;
+  const chartWidth = 760;
+  const chartHeight = 260;
+  const horizontalPadding = 18;
+  const topPadding = 20;
+  const bottomPadding = 38;
+  const spread = Math.max(highestPrice - lowestPrice, Math.abs(highestPrice) * 0.01, 0.01);
+  const chartMin = lowestPrice - spread * 0.12;
+  const chartMax = highestPrice + spread * 0.12;
+  const coordinates = points.map((point, index) => {
+    const x = horizontalPadding + (points.length === 1 ? (chartWidth - horizontalPadding * 2) / 2 : (index / (points.length - 1)) * (chartWidth - horizontalPadding * 2));
+    const y = topPadding + ((chartMax - point.close) / (chartMax - chartMin)) * (chartHeight - topPadding - bottomPadding);
+    return { x, y, point };
+  });
+  const linePath = coordinates.map(({ x, y }, index) => `${index === 0 ? "M" : "L"}${x.toFixed(2)} ${y.toFixed(2)}`).join(" ");
+  const areaPath = coordinates.length ? `${linePath} L${coordinates.at(-1)!.x.toFixed(2)} ${chartHeight - bottomPadding} L${coordinates[0].x.toFixed(2)} ${chartHeight - bottomPadding} Z` : "";
+  const labelIndexes = [...new Set([0, Math.floor((points.length - 1) / 3), Math.floor(((points.length - 1) * 2) / 3), points.length - 1])].filter((index) => index >= 0);
+  const rangeWasLimited = Boolean(history && history.usedRange !== history.requestedPeriod);
+
+  return <section id="market-history-chart" className={`panel market-history ${isPositive ? "gain" : "loss"}`} aria-busy={loading}>
+    <header className="market-history-head">
+      <div><span>HISTÓRICO DE PREÇOS</span><h2>{quote.symbol}</h2><p>{quote.name ?? "Ação B3"} · {formatMarketPrice(quote.price, quote.currency)} no último dado disponível</p></div>
+      <div className="history-periods" aria-label="Período do gráfico">
+        {(["7d", "1mo", "1y"] as MarketHistoryPeriod[]).map((item) => <button key={item} type="button" className={period === item ? "active" : ""} aria-pressed={period === item} onClick={() => setPeriod(item)}>{item === "7d" ? "1S" : item === "1mo" ? "1M" : "1A"}</button>)}
+      </div>
+    </header>
+    {loading ? <div className="history-skeleton" aria-label="Carregando gráfico" /> : error ? <div className="history-error"><TrendingDown /><b>Histórico indisponível</b><span>{error}</span><button type="button" className="textbutton" onClick={() => setReloadKey((key) => key + 1)}>Tentar novamente</button></div> : points.length ? <>
+      <div className="history-summary">
+        <div><span>Variação no período</span><b className={isPositive ? "gain" : "loss"}>{isPositive ? "+" : ""}{periodChange.toFixed(2).replace(".", ",")}%</b></div>
+        <div><span>Menor fechamento</span><b>{formatMarketPrice(lowestPrice, quote.currency)}</b></div>
+        <div><span>Maior fechamento</span><b>{formatMarketPrice(highestPrice, quote.currency)}</b></div>
+        <div><span>Último fechamento</span><b>{formatMarketPrice(lastPrice, quote.currency)}</b></div>
+      </div>
+      <div className="history-chart-wrap">
+        <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img" aria-label={`Histórico de ${quote.symbol} em ${MARKET_HISTORY_PERIOD_LABELS[period]}. Variação de ${periodChange.toFixed(2)}%.`}>
+          <defs><linearGradient id="history-area-fill" x1="0" x2="0" y1="0" y2="1"><stop stopColor="currentColor" stopOpacity=".25"/><stop offset="1" stopColor="currentColor" stopOpacity="0"/></linearGradient></defs>
+          {[0, 1, 2, 3].map((row) => <line key={row} className="history-grid-line" x1={horizontalPadding} x2={chartWidth - horizontalPadding} y1={topPadding + row * ((chartHeight - topPadding - bottomPadding) / 3)} y2={topPadding + row * ((chartHeight - topPadding - bottomPadding) / 3)} />)}
+          <path className="history-area" d={areaPath} />
+          <path className="history-line" d={linePath} />
+          {coordinates.length > 0 && <circle className="history-last-point" cx={coordinates.at(-1)!.x} cy={coordinates.at(-1)!.y} r="5" />}
+          {labelIndexes.map((index) => <text key={index} className="history-axis-label" x={coordinates[index].x} y={chartHeight - 12} textAnchor={index === 0 ? "start" : index === points.length - 1 ? "end" : "middle"}>{formatHistoryDate(points[index].date, period)}</text>)}
+        </svg>
+      </div>
+      <div className="history-source"><span>Fonte {history?.source} · fechamento ajustado · atualização {history ? new Date(history.retrievedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "—"}</span>{rangeWasLimited && <b>A BRAPI retornou {history?.usedRange} por limite do plano disponível.</b>}</div>
+    </> : null}
+  </section>;
 }
 function Metric({ title, value, note, green = false }: { title: string; value: string; note: string; green?: boolean }) {
   return <div className="stat"><small>{title}</small><strong>{value}</strong><span className={green ? "positive" : ""}>{note}</span></div>;
@@ -739,6 +831,7 @@ function Assets({
   const [highlights, setHighlights] = useState<MarketHighlights | null>(null);
   const [highlightsLoading, setHighlightsLoading] = useState(false);
   const [highlightsError, setHighlightsError] = useState(false);
+  const [marketChartQuote, setMarketChartQuote] = useState<MarketQuote | null>(null);
   const [alertForm, setAlertForm] = useState({ ticker: assetList[0]?.[0] ?? "", condition: "acima", value: "" });
 
   const subtitle = page === "portfolio" ? "Acompanhe a composição da sua carteira." : page === "market" ? "Dados de mercado para orientar suas decisões." : "Encontre ativos que combinam com sua estratégia.";
@@ -830,6 +923,18 @@ function Assets({
     setOrderForm({ symbol: quote.symbol, side: "BUY", quantity: "1" });
   }
 
+  async function selectMarketInstrument(symbol: string) {
+    try {
+      const response = await fetch(`/api/market/quote/${encodeURIComponent(symbol)}`);
+      const quote = await response.json().catch(() => null) as MarketQuote | null;
+      if (!response.ok || !quote || !Number.isFinite(quote.price) || quote.price <= 0) throw new Error("Cotação indisponível.");
+      setMarketChartQuote(quote);
+      window.requestAnimationFrame(() => document.getElementById("market-history-chart")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Não foi possível carregar o gráfico deste ativo.");
+    }
+  }
+
   const searched = listForPage.filter((a) => a[0].toLowerCase().includes(search.toLowerCase()) || a[1].toLowerCase().includes(search.toLowerCase()));
   const tagged = searched.filter((a) => {
     if (tag === "Favoritos") return favorites.has(a[0]);
@@ -842,6 +947,7 @@ function Assets({
     if (onlyDown) return a[4] === "down";
     return true;
   });
+  const effectiveMarketChartQuote = marketChartQuote ?? highlights?.rising[0] ?? highlights?.falling[0] ?? null;
 
   async function submitOrder(e: FormEvent) {
     e.preventDefault();
@@ -911,7 +1017,10 @@ function Assets({
           <div><span>Valor investido</span><h3>{portfolio ? fmt.format(portfolio.summary.investedValue) : "—"}</h3><small>{portfolio ? `${portfolio.summary.positionCount} posição(ões)` : "Dados indisponíveis"}</small></div>
         </div>
       )}
-      {page === "market" && <MarketMovers highlights={highlights} loading={highlightsLoading} error={highlightsError} onRetry={() => void loadHighlights()} />}
+      {page === "market" && <>
+        <MarketMovers highlights={highlights} loading={highlightsLoading} error={highlightsError} onRetry={() => void loadHighlights()} onSelect={setMarketChartQuote} selectedSymbol={effectiveMarketChartQuote?.symbol} />
+        <MarketHistoryChart quote={effectiveMarketChartQuote} />
+      </>}
       {(page !== "market" || search.trim()) && <section className="panel tablepanel">
         <div className="filterbar">
           <div>
@@ -932,6 +1041,7 @@ function Assets({
               <MoreMenu
                 options={[
                   { label: favorites.has(a[0]) ? "Remover dos favoritos" : "Adicionar aos favoritos", onClick: () => toggleFav(a[0]) },
+                  ...(page === "market" ? [{ label: "Ver gráfico histórico", onClick: () => { void selectMarketInstrument(a[0]); } }] : []),
                   { label: "Ver detalhes", onClick: () => setDetailItem(a) },
                   ...(page === "portfolio" ? [{ label: "Vender posição", onClick: () => { setOrderForm({ symbol: a[0], side: "SELL", quantity: "" }); setAddOpen(true); } }] : []),
                 ]}

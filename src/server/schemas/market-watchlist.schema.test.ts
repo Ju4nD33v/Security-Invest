@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { marketSearchSchema, symbolParamsSchema } from "@/src/server/schemas/market.schema";
+import { marketHistoryQuerySchema, marketSearchSchema, symbolParamsSchema } from "@/src/server/schemas/market.schema";
 import { watchlistAssetSchema } from "@/src/server/schemas/watchlist.schema";
 
 describe("market and watchlist validation", () => {
@@ -14,5 +14,12 @@ describe("market and watchlist validation", () => {
       expect(symbolParamsSchema.safeParse({ symbol }).success).toBe(false);
     }
     expect(marketSearchSchema.safeParse({ q: "x".repeat(81) }).success).toBe(false);
+    expect(marketHistoryQuerySchema.safeParse({ period: "10y" }).success).toBe(false);
+  });
+
+  it("only accepts the chart periods exposed by the interface", () => {
+    expect(marketHistoryQuerySchema.parse({})).toEqual({ period: "1mo" });
+    expect(marketHistoryQuerySchema.parse({ period: "7d" })).toEqual({ period: "7d" });
+    expect(marketHistoryQuerySchema.parse({ period: "1y" })).toEqual({ period: "1y" });
   });
 });
