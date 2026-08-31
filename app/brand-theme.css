@@ -1348,6 +1348,147 @@ footer {
   font-size: 10px;
 }
 
+/* Shared interactive behavior for every chart */
+.chart-interaction {
+  position: relative;
+  isolation: isolate;
+  cursor: crosshair;
+  touch-action: pan-y;
+}
+
+.chart-interaction:focus-visible,
+.chart-ring:focus-visible {
+  outline: 2px solid var(--brand-gold-light);
+  outline-offset: 4px;
+}
+
+.line-chart-interaction,
+.metric-chart-plot {
+  color: var(--brand-gold-light);
+}
+
+.metric-chart-plot {
+  width: 100%;
+  align-self: center;
+}
+
+.chart-area,
+.chart-crosshair,
+.chart-active-point {
+  pointer-events: none;
+}
+
+.chart-crosshair {
+  stroke: currentColor;
+  stroke-width: 1.25;
+  stroke-dasharray: 4 5;
+  opacity: .68;
+}
+
+.chart-active-point {
+  fill: var(--brand-bg);
+  stroke: currentColor;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 4px currentColor);
+}
+
+.chart-tooltip {
+  position: absolute;
+  z-index: 12;
+  display: grid;
+  min-width: 142px;
+  max-width: 210px;
+  gap: 3px;
+  padding: 9px 11px;
+  color: var(--brand-text);
+  background: rgba(8, 10, 14, .96);
+  border: 1px solid var(--brand-border-strong);
+  border-radius: 4px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .42);
+  font-family: var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  pointer-events: none;
+  backdrop-filter: blur(8px);
+}
+
+.chart-tooltip.center {
+  transform: translate(-50%, calc(-100% - 12px));
+}
+
+.chart-tooltip.start {
+  transform: translate(0, calc(-100% - 12px));
+}
+
+.chart-tooltip.end {
+  transform: translate(-100%, calc(-100% - 12px));
+}
+
+.chart-tooltip span,
+.chart-tooltip small {
+  color: var(--brand-muted);
+  font-size: 9px;
+}
+
+.chart-tooltip strong {
+  color: var(--brand-gold-pale);
+  font-size: 12px;
+}
+
+.chart-tooltip.compact {
+  min-width: 124px;
+  padding: 7px 9px;
+}
+
+.chart-tooltip.compact strong {
+  font-size: 11px;
+}
+
+.chart-ring {
+  transition: transform .16s ease, box-shadow .16s ease;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.chart-ring::before {
+  z-index: 0;
+}
+
+.chart-ring > span {
+  position: relative;
+  z-index: 1;
+}
+
+.chart-ring.segment-gold {
+  box-shadow: 0 0 0 3px rgba(201, 166, 107, .2);
+}
+
+.chart-ring.segment-brown {
+  box-shadow: 0 0 0 3px rgba(91, 71, 46, .32);
+}
+
+.chart-ring.segment-green {
+  box-shadow: 0 0 0 3px rgba(75, 168, 116, .24);
+}
+
+.chart-ring.segment-gold,
+.chart-ring.segment-brown,
+.chart-ring.segment-green {
+  transform: scale(1.025);
+}
+
+.chart-ring .chart-tooltip {
+  z-index: 15;
+}
+
+@media (hover: none) {
+  .metric-chart-tabs button,
+  .tabs button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
 @media (max-width: 700px) {
   .market-history {
     min-height: 390px;

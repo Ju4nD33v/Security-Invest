@@ -3,7 +3,8 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowDownRight, ArrowUpRight, Bell, BookOpen, Bot, BrainCircuit, BriefcaseBusiness, ChevronDown, CircleHelp, Eye, EyeOff, FileBarChart, Globe2, LayoutDashboard, LockKeyhole, LogOut, Menu, Moon, Plus, Search, Send, Settings as SettingsIcon, ShieldCheck, SlidersHorizontal, Sparkles, Sun, TrendingDown, TrendingUp, UserRound, WalletCards, X } from "lucide-react";
 import Image from "next/image";
-import { FormEvent, useState, useRef, useContext, createContext, Dispatch, SetStateAction, useEffect } from "react";
+import { FormEvent, useState, useRef, useContext, createContext, Dispatch, SetStateAction, useEffect, useId } from "react";
+import { adjacentChartPointIndex, nearestChartPointIndex, ringSegmentIndex } from "@/src/shared/chart-interaction";
 import { MARKET_HISTORY_PERIOD_LABELS, type MarketHistory, type MarketHistoryPeriod } from "@/src/shared/market-history";
 import { getPasswordValidationErrors, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/src/shared/password-policy";
 
@@ -115,43 +116,146 @@ function Logo({ dark = false }: { dark?: boolean }) {
 function Btn({ children, onClick, variant = "primary", type = "button", disabled = false }: { children: React.ReactNode; onClick?: () => void; variant?: "primary" | "ghost" | "outline"; type?: "button" | "submit"; disabled?: boolean }) {
   return <button type={type} onClick={onClick} disabled={disabled} className={`btn ${variant}`}>{children}</button>;
 }
-function LineChart() {
-  return (
-    <svg viewBox="0 0 800 220" className="linechart" role="img" aria-label="Evolução da carteira nos últimos seis meses">
-      <defs>
-        <linearGradient id="fill" x1="0" x2="0" y1="0" y2="1">
-          <stop stopColor="#c9a66b" stopOpacity=".24" />
-          <stop offset="1" stopColor="#c9a66b" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path className="grid" d="M0 36H800M0 92H800M0 148H800M0 204H800" />
-      <path fill="url(#fill)" d="M0 182 L42 173 90 178 136 135 184 144 230 117 282 128 330 95 380 111 432 73 478 88 530 38 578 64 622 44 671 69 720 28 760 43 800 18V220H0Z" />
-      <path className="plot" d="M0 182 L42 173 90 178 136 135 184 144 230 117 282 128 330 95 380 111 432 73 478 88 530 38 578 64 622 44 671 69 720 28 760 43 800 18" />
-    </svg>
-  );
+type PortfolioChartRange = "6M" | "1A" | "Máx.";
+type ChartPoint = { label: string; value: number };
+
+const portfolioChartSeries: Record<PortfolioChartRange, { labels: string[]; ratios: number[] }> = {
+  "6M": { labels: ["Mar/2026", "Abr/2026", "Mai/2026", "Jun/2026", "Jul/2026", "Ago/2026"], ratios: [.92, .945, .932, .968, .956, 1] },
+  "1A": { labels: ["Set/2025", "Out/2025", "Nov/2025", "Dez/2025", "Jan/2026", "Fev/2026", "Mar/2026", "Abr/2026", "Mai/2026", "Jun/2026", "Jul/2026", "Ago/2026"], ratios: [.84, .86, .855, .89, .875, .91, .92, .945, .932, .968, .956, 1] },
+  "Máx.": { labels: ["2022", "2023", "2024", "2025", "2026"], ratios: [.66, .73, .79, .88, 1] },
+};
+
+function portfolioChartPoints(range: PortfolioChartRange, currentValue: number, hasPortfolio: boolean): ChartPoint[] {
+  const series = portfolioChartSeries[range];
+  return series.labels.map((label, index) => ({ label, value: hasPortfolio ? currentValue * series.ratios[index] : currentValue }));
 }
-function PortfolioSparkline({ range, onRangeChange, hasPortfolio }: { range: "6M" | "1A" | "Máx."; onRangeChange: (range: "6M" | "1A" | "Máx.") => void; hasPortfolio: boolean }) {
-  const series: Record<"6M" | "1A" | "Máx.", number[]> = {
-    "6M": [50, 44, 47, 35, 39, 27, 31, 20, 24, 14],
-    "1A": [51, 47, 53, 45, 41, 43, 34, 37, 29, 32, 22, 18],
-    "Máx.": [52, 48, 45, 40, 44, 35, 38, 27, 31, 19],
+
+function lineCoordinates(points: ChartPoint[], width: number, height: number, horizontalPadding: number, verticalPadding: number) {
+  const values = points.map((point) => point.value);
+  const minimum = Math.min(...values);
+  const maximum = Math.max(...values);
+  const spread = Math.max(maximum - minimum, Math.abs(maximum) * .01, .01);
+  const chartMinimum = minimum - spread * .12;
+  const chartMaximum = maximum + spread * .12;
+  return points.map((point, index) => ({
+    point,
+    x: horizontalPadding + (points.length === 1 ? (width - horizontalPadding * 2) / 2 : index / (points.length - 1) * (width - horizontalPadding * 2)),
+    y: verticalPadding + (chartMaximum - point.value) / (chartMaximum - chartMinimum) * (height - verticalPadding * 2),
+  }));
+}
+
+function useChartPointInteraction(pointCount: number) {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  function onPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    setActiveIndex(nearestChartPointIndex(event.clientX, bounds.left, bounds.width, pointCount));
+  }
+  function onKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      event.preventDefault();
+      setActiveIndex((current) => adjacentChartPointIndex(current, pointCount, event.key === "ArrowLeft" ? -1 : 1));
+    } else if (event.key === "Home") {
+      event.preventDefault(); setActiveIndex(pointCount ? 0 : null);
+    } else if (event.key === "End") {
+      event.preventDefault(); setActiveIndex(pointCount ? pointCount - 1 : null);
+    }
+  }
+  return {
+    activeIndex,
+    setActiveIndex,
+    interactionProps: {
+      onPointerMove,
+      onPointerLeave: () => setActiveIndex(null),
+      onFocus: () => setActiveIndex((current) => current ?? (pointCount ? pointCount - 1 : null)),
+      onBlur: () => setActiveIndex(null),
+      onKeyDown,
+    },
   };
-  const points = hasPortfolio ? series[range] : series[range].map(() => 48);
-  const path = points.map((y, index) => `${(index / (points.length - 1)) * 176 + 2},${y}`).join(" ");
+}
+
+function ChartTooltip({ id, x, y, title, value, detail, compact = false }: { id: string; x: number; y: number; title: string; value: string; detail?: string; compact?: boolean }) {
+  const alignment = x < 18 ? "start" : x > 82 ? "end" : "center";
+  return <div id={id} role="tooltip" className={`chart-tooltip ${alignment}${compact ? " compact" : ""}`} style={{ left: `${x}%`, top: `${Math.max(10, y)}%` }}><span>{title}</span><strong>{value}</strong>{detail && <small>{detail}</small>}</div>;
+}
+
+function LineChart({ range = "6M", currentValue = 124_850.62, hasPortfolio = true }: { range?: PortfolioChartRange; currentValue?: number; hasPortfolio?: boolean }) {
+  const width = 800;
+  const height = 220;
+  const points = portfolioChartPoints(range, currentValue, hasPortfolio);
+  const coordinates = lineCoordinates(points, width, height, 8, 16);
+  const linePath = coordinates.map(({ x, y }, index) => `${index ? "L" : "M"}${x.toFixed(2)} ${y.toFixed(2)}`).join(" ");
+  const areaPath = `${linePath} L${coordinates.at(-1)!.x.toFixed(2)} ${height} L${coordinates[0].x.toFixed(2)} ${height} Z`;
+  const gradientId = useId().replace(/:/g, "");
+  const tooltipId = useId().replace(/:/g, "");
+  const interaction = useChartPointInteraction(points.length);
+  const selected = interaction.activeIndex === null ? null : coordinates[Math.min(interaction.activeIndex, coordinates.length - 1)];
+  const firstValue = points[0].value;
+  const selectedChange = selected && firstValue ? (selected.point.value - firstValue) / firstValue * 100 : 0;
+  return <div className="chart-interaction line-chart-interaction" tabIndex={0} role="group" aria-label={`Evolução patrimonial simulada em ${range}. Passe o mouse ou use as setas para explorar os valores.`} aria-describedby={selected ? tooltipId : undefined} {...interaction.interactionProps}>
+    <svg viewBox={`0 0 ${width} ${height}`} className="linechart" aria-hidden="true" focusable="false">
+      <defs><linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1"><stop stopColor="#c9a66b" stopOpacity=".24" /><stop offset="1" stopColor="#c9a66b" stopOpacity="0" /></linearGradient></defs>
+      <path className="grid" d="M0 36H800M0 92H800M0 148H800M0 204H800" />
+      <path className="chart-area" fill={`url(#${gradientId})`} d={areaPath} />
+      <path className="plot" d={linePath} />
+      {selected && <><line className="chart-crosshair" x1={selected.x} x2={selected.x} y1="8" y2={height} /><circle className="chart-active-point" cx={selected.x} cy={selected.y} r="6" /></>}
+    </svg>
+    {selected && <ChartTooltip id={tooltipId} x={selected.x / width * 100} y={selected.y / height * 100} title={selected.point.label} value={fmt.format(selected.point.value)} detail={`${selectedChange >= 0 ? "+" : ""}${selectedChange.toFixed(2).replace(".", ",")}% no período · simulação`} />}
+  </div>;
+}
+
+function PortfolioSparkline({ range, onRangeChange, hasPortfolio, currentValue = 100_000 }: { range: PortfolioChartRange; onRangeChange: (range: PortfolioChartRange) => void; hasPortfolio: boolean; currentValue?: number }) {
+  const width = 180;
+  const height = 68;
+  const points = portfolioChartPoints(range, currentValue, hasPortfolio);
+  const coordinates = lineCoordinates(points, width, height, 2, 8);
+  const path = coordinates.map(({ x, y }) => `${x.toFixed(2)},${y.toFixed(2)}`).join(" ");
+  const gradientId = useId().replace(/:/g, "");
+  const tooltipId = useId().replace(/:/g, "");
+  const interaction = useChartPointInteraction(points.length);
+  const selected = interaction.activeIndex === null ? null : coordinates[Math.min(interaction.activeIndex, coordinates.length - 1)];
   return <div className="metric-chart">
     <div className="metric-chart-tabs" aria-label="Período da visualização simulada">
       {(["6M", "1A", "Máx."] as const).map((item) => <button key={item} type="button" className={range === item ? "active" : ""} onClick={() => onRangeChange(item)}>{item}</button>)}
     </div>
-    <svg viewBox="0 0 180 68" role="img" aria-label={`Evolução simulada da carteira em ${range}`}>
-      <defs><linearGradient id="metric-fill" x1="0" x2="0" y1="0" y2="1"><stop stopColor="#c9a66b" stopOpacity=".35"/><stop offset="1" stopColor="#c9a66b" stopOpacity="0"/></linearGradient></defs>
-      <path d={`M2,68 L${path} L178,68 Z`} fill="url(#metric-fill)" />
-      <polyline points={path} fill="none" stroke="#c9a66b" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    <div className="chart-interaction metric-chart-plot" tabIndex={0} role="group" aria-label={`Evolução simulada da carteira em ${range}. Passe o mouse ou use as setas para explorar os valores.`} aria-describedby={selected ? tooltipId : undefined} {...interaction.interactionProps}>
+      <svg viewBox={`0 0 ${width} ${height}`} aria-hidden="true" focusable="false">
+        <defs><linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1"><stop stopColor="#c9a66b" stopOpacity=".35"/><stop offset="1" stopColor="#c9a66b" stopOpacity="0"/></linearGradient></defs>
+        <path d={`M2,${height} L${path} L${width - 2},${height} Z`} fill={`url(#${gradientId})`} />
+        <polyline points={path} fill="none" stroke="#c9a66b" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        {selected && <><line className="chart-crosshair" x1={selected.x} x2={selected.x} y1="2" y2={height} /><circle className="chart-active-point" cx={selected.x} cy={selected.y} r="4" /></>}
+      </svg>
+      {selected && <ChartTooltip id={tooltipId} compact x={selected.x / width * 100} y={selected.y / height * 100} title={selected.point.label} value={fmt.format(selected.point.value)} detail="Saldo virtual simulado" />}
+    </div>
     <small>Visualização simulada</small>
   </div>;
 }
+
+const allocationSegments = [
+  { label: "Renda variável", percentage: 48, detail: "Ações e ETFs", tone: "gold" },
+  { label: "Renda fixa", percentage: 32, detail: "Títulos públicos e privados", tone: "brown" },
+  { label: "Fundos", percentage: 20, detail: "Fundos diversificados", tone: "green" },
+] as const;
+
 function Ring() {
-  return <div className="ring"><span>Renda<br />48%</span></div>;
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [pointerPosition, setPointerPosition] = useState({ x: 50, y: 8 });
+  const tooltipId = useId().replace(/:/g, "");
+  const active = activeIndex === null ? allocationSegments[0] : allocationSegments[activeIndex];
+  function onPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    setActiveIndex(ringSegmentIndex(event.clientX, event.clientY, bounds.left, bounds.top, bounds.width, bounds.height, allocationSegments.map((segment) => segment.percentage)));
+    setPointerPosition({ x: Math.min(88, Math.max(12, (event.clientX - bounds.left) / bounds.width * 100)), y: Math.min(88, Math.max(12, (event.clientY - bounds.top) / bounds.height * 100)) });
+  }
+  function onKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      event.preventDefault();
+      setActiveIndex((current) => adjacentChartPointIndex(current, allocationSegments.length, event.key === "ArrowLeft" ? -1 : 1));
+    }
+  }
+  return <div className={`ring chart-ring${activeIndex === null ? "" : ` segment-${active.tone}`}`} tabIndex={0} role="group" aria-label="Alocação da carteira. Passe o mouse ou use as setas para explorar as classes." aria-describedby={activeIndex === null ? undefined : tooltipId} onPointerMove={onPointerMove} onPointerLeave={() => setActiveIndex(null)} onFocus={() => setActiveIndex((current) => current ?? 0)} onBlur={() => setActiveIndex(null)} onKeyDown={onKeyDown}>
+    <span>{active.label.split(" ")[0]}<br /><b>{active.percentage}%</b></span>
+    {activeIndex !== null && <ChartTooltip id={tooltipId} x={pointerPosition.x} y={pointerPosition.y} title={active.label} value={`${active.percentage}%`} detail={active.detail} compact />}
+  </div>;
 }
 function AssetRow({ a }: { a: string[] }) {
   const up = a[4] === "up";
@@ -193,6 +297,8 @@ function MarketHistoryChart({ quote }: { quote: MarketQuote | null }) {
   const loading = Boolean(quote && requestState.key !== requestKey);
   const history = requestState.key === requestKey ? requestState.history : null;
   const error = requestState.key === requestKey ? requestState.error : "";
+  const tooltipId = useId().replace(/:/g, "");
+  const interaction = useChartPointInteraction(history?.points.length ?? 0);
 
   useEffect(() => {
     if (!quote) return;
@@ -239,6 +345,8 @@ function MarketHistoryChart({ quote }: { quote: MarketQuote | null }) {
   const areaPath = coordinates.length ? `${linePath} L${coordinates.at(-1)!.x.toFixed(2)} ${chartHeight - bottomPadding} L${coordinates[0].x.toFixed(2)} ${chartHeight - bottomPadding} Z` : "";
   const labelIndexes = [...new Set([0, Math.floor((points.length - 1) / 3), Math.floor(((points.length - 1) * 2) / 3), points.length - 1])].filter((index) => index >= 0);
   const rangeWasLimited = Boolean(history && history.usedRange !== history.requestedPeriod);
+  const selected = interaction.activeIndex === null ? null : coordinates[Math.min(interaction.activeIndex, coordinates.length - 1)];
+  const selectedChange = selected && firstPrice > 0 ? (selected.point.close - firstPrice) / firstPrice * 100 : 0;
 
   return <section id="market-history-chart" className={`panel market-history ${isPositive ? "gain" : "loss"}`} aria-busy={loading}>
     <header className="market-history-head">
@@ -254,15 +362,17 @@ function MarketHistoryChart({ quote }: { quote: MarketQuote | null }) {
         <div><span>Maior fechamento</span><b>{formatMarketPrice(highestPrice, quote.currency)}</b></div>
         <div><span>Último fechamento</span><b>{formatMarketPrice(lastPrice, quote.currency)}</b></div>
       </div>
-      <div className="history-chart-wrap">
-        <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} role="img" aria-label={`Histórico de ${quote.symbol} em ${MARKET_HISTORY_PERIOD_LABELS[period]}. Variação de ${periodChange.toFixed(2)}%.`}>
+      <div className="history-chart-wrap chart-interaction" tabIndex={0} role="group" aria-label={`Histórico de ${quote.symbol} em ${MARKET_HISTORY_PERIOD_LABELS[period]}. Passe o mouse ou use as setas para explorar cada fechamento.`} aria-describedby={selected ? tooltipId : undefined} {...interaction.interactionProps}>
+        <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} aria-hidden="true" focusable="false">
           <defs><linearGradient id="history-area-fill" x1="0" x2="0" y1="0" y2="1"><stop stopColor="currentColor" stopOpacity=".25"/><stop offset="1" stopColor="currentColor" stopOpacity="0"/></linearGradient></defs>
           {[0, 1, 2, 3].map((row) => <line key={row} className="history-grid-line" x1={horizontalPadding} x2={chartWidth - horizontalPadding} y1={topPadding + row * ((chartHeight - topPadding - bottomPadding) / 3)} y2={topPadding + row * ((chartHeight - topPadding - bottomPadding) / 3)} />)}
           <path className="history-area" d={areaPath} />
           <path className="history-line" d={linePath} />
           {coordinates.length > 0 && <circle className="history-last-point" cx={coordinates.at(-1)!.x} cy={coordinates.at(-1)!.y} r="5" />}
+          {selected && <><line className="chart-crosshair" x1={selected.x} x2={selected.x} y1={topPadding} y2={chartHeight - bottomPadding} /><circle className="chart-active-point" cx={selected.x} cy={selected.y} r="6" /></>}
           {labelIndexes.map((index) => <text key={index} className="history-axis-label" x={coordinates[index].x} y={chartHeight - 12} textAnchor={index === 0 ? "start" : index === points.length - 1 ? "end" : "middle"}>{formatHistoryDate(points[index].date, period)}</text>)}
         </svg>
+        {selected && <ChartTooltip id={tooltipId} x={selected.x / chartWidth * 100} y={selected.y / chartHeight * 100} title={new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium" }).format(new Date(selected.point.date))} value={formatMarketPrice(selected.point.close, quote.currency)} detail={`${selectedChange >= 0 ? "+" : ""}${selectedChange.toFixed(2).replace(".", ",")}% desde o início do período`} />}
       </div>
       <div className="history-source"><span>Fonte {history?.source} · fechamento ajustado · atualização {history ? new Date(history.retrievedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "—"}</span>{rangeWasLimited && <b>A BRAPI retornou {history?.usedRange} por limite do plano disponível.</b>}</div>
     </> : null}
@@ -724,7 +834,7 @@ function Overview({ go, profile, portfolio }: { go: (s: Screen) => void; profile
             <h2>{hideBalance ? "R$ ••••••" : portfolio ? fmt.format(portfolio.summary.totalEquity) : "—"}</h2>
             <b><TrendingUp size={15} /> {portfolio ? `${portfolio.summary.unrealizedPnlPercent >= 0 ? "+" : ""}${portfolio.summary.unrealizedPnlPercent.toFixed(2).replace(".", ",")}%` : "—"} <small>resultado não realizado</small></b>
           </div>
-          <PortfolioSparkline range={range} onRangeChange={setRange} hasPortfolio={Boolean(portfolio?.summary.positionCount)} />
+          <PortfolioSparkline range={range} onRangeChange={setRange} hasPortfolio={Boolean(portfolio?.summary.positionCount)} currentValue={portfolio?.summary.totalEquity ?? 100_000} />
         </div>
         <Metric title="P&L não realizado" value={hideBalance ? "R$ ••••••" : portfolio ? fmt.format(portfolio.summary.unrealizedPnl) : "—"} note="Dados de mercado disponíveis" green />
         <Metric title="Posições simuladas" value={portfolio ? String(portfolio.summary.positionCount) : "—"} note="Saldo virtual separado" />
@@ -733,14 +843,14 @@ function Overview({ go, profile, portfolio }: { go: (s: Screen) => void; profile
       <div className="dashboardgrid">
         <section className="panel performance">
           <div className="panelhead">
-            <div><h3>Evolução patrimonial</h3><p>Últimos 6 meses</p></div>
+            <div><h3>Evolução patrimonial</h3><p>{range === "6M" ? "Últimos 6 meses" : range === "1A" ? "Último ano" : "Período máximo simulado"}</p></div>
             <div className="tabs">
               {(["6M", "1A", "Máx."] as const).map((r) => (
                 <button key={r} className={range === r ? "active" : ""} onClick={() => setRange(r)}>{r}</button>
               ))}
             </div>
           </div>
-          <LineChart />
+          <LineChart range={range} currentValue={portfolio?.summary.totalEquity ?? 100_000} hasPortfolio={Boolean(portfolio?.summary.positionCount)} />
           <div className="months">{monthsMap[range].map((m) => <span key={m}>{m}</span>)}</div>
         </section>
         <section className="panel allocationpanel">
