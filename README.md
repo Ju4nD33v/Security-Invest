@@ -1,4 +1,4 @@
-# Secure Invest
+# Security Invest
 
 Plataforma de análise e **Paper Trading**. Não é corretora, não envia ordens à B3 e não movimenta o saldo virtual. Pagamentos Mercado Pago servem exclusivamente aos planos do produto.
 
@@ -6,7 +6,7 @@ Plataforma de análise e **Paper Trading**. Não é corretora, não envia ordens
 
 ## Acesso online
 
-O Secure Invest está hospedado na Vercel e disponível em [security-invest.vercel.app](https://security-invest.vercel.app/).
+O Security Invest está hospedado na Vercel e disponível em [security-invest.vercel.app](https://security-invest.vercel.app/).
 
 O deployment público está funcional. Para utilizar recursos que dependem de provedores externos, como dados de mercado e pagamentos, as respectivas variáveis de ambiente devem permanecer configuradas na Vercel.
 

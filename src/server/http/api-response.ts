@@ -29,7 +29,8 @@ export function apiOptions(request: Request) {
 
 export function apiError(error: unknown, request: Request, id = requestId()) {
   if (error instanceof ZodError) {
-    return apiJson({ error: { code: "VALIDATION_ERROR", message: "Dados inválidos.", details: error.flatten() } }, request, 400, id);
+    const passwordIssue = error.issues.find((issue) => issue.path.includes("password"));
+    return apiJson({ error: { code: "VALIDATION_ERROR", message: passwordIssue?.message ?? "Dados inválidos.", details: error.flatten() } }, request, 400, id);
   }
   if (error instanceof AppError) {
     return apiJson({ error: { code: error.code, message: error.message, details: error.details } }, request, error.status, id);

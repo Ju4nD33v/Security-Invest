@@ -1,0 +1,1107 @@
+:root {
+  --brand-bg: #080b10;
+  --brand-bg-soft: #0a0d12;
+  --brand-surface: #0d1118;
+  --brand-surface-raised: #121720;
+  --brand-surface-hover: #171d27;
+  --brand-ivory: #ece7dc;
+  --brand-text: #c9c0ae;
+  --brand-muted: #908b82;
+  --brand-faint: #67645e;
+  --brand-gold: #a47a45;
+  --brand-gold-light: #c9a66b;
+  --brand-gold-pale: #e0c58e;
+  --brand-border: rgba(185, 145, 83, 0.24);
+  --brand-border-strong: rgba(201, 166, 107, 0.46);
+  --brand-gold-wash: rgba(164, 122, 69, 0.12);
+  --brand-success: #8fb6a3;
+  --brand-danger: #cf837c;
+  --brand-warning: #d4aa65;
+  --brand-shadow: 0 24px 64px rgba(0, 0, 0, 0.38);
+  --brand-radius: 3px;
+  --font-ui: var(--font-manrope), system-ui, sans-serif;
+  --font-display: var(--font-cinzel), Georgia, serif;
+
+  /* Compatibility aliases used by the existing interface. */
+  --navy: var(--brand-bg);
+  --blue: var(--brand-gold);
+  --green: var(--brand-success);
+  --red: var(--brand-danger);
+  --amber: var(--brand-warning);
+  --bg: var(--brand-bg);
+  --line: var(--brand-border);
+  --muted: var(--brand-muted);
+  --ink: var(--brand-ivory);
+}
+
+html {
+  color-scheme: dark;
+  background: var(--brand-bg);
+}
+
+body {
+  font-family: var(--font-ui);
+  color: var(--brand-text);
+  background:
+    radial-gradient(circle at 12% 2%, rgba(164, 122, 69, 0.08), transparent 28rem),
+    var(--brand-bg);
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: var(--font-ui);
+}
+
+h1,
+h2,
+.quote > p,
+.authquote {
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+::selection {
+  color: var(--brand-bg);
+  background: var(--brand-gold-light);
+}
+
+/* Brand */
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--brand-ivory);
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.065em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.brand-logo-image {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border: 1px solid var(--brand-border-strong);
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 0 0 3px rgba(164, 122, 69, 0.07);
+}
+
+.brand-wordmark > span {
+  color: var(--brand-gold-light);
+}
+
+.mini-side .brand-logo-image,
+footer .brand-logo-image {
+  width: 30px;
+  height: 30px;
+}
+
+.mini-side .brand-wordmark {
+  font-size: 10px;
+}
+
+/* Shared controls */
+.btn {
+  min-height: 42px;
+  border: 1px solid var(--brand-gold);
+  border-radius: var(--brand-radius);
+  padding: 11px 18px;
+  color: var(--brand-bg);
+  background: var(--brand-gold);
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.025em;
+  transition: color 160ms ease, background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.btn:hover {
+  color: var(--brand-bg);
+  background: var(--brand-gold-light);
+  border-color: var(--brand-gold-light);
+  transform: translateY(-1px);
+}
+
+.btn.ghost {
+  color: var(--brand-text);
+  background: transparent;
+  border-color: transparent;
+}
+
+.btn.ghost:hover {
+  color: var(--brand-gold-light);
+  background: var(--brand-gold-wash);
+  border-color: var(--brand-border);
+}
+
+.btn.outline,
+.social {
+  color: var(--brand-ivory);
+  background: transparent;
+  border-color: var(--brand-border-strong);
+}
+
+.btn.outline:hover,
+.social:hover {
+  color: var(--brand-gold-pale);
+  background: var(--brand-gold-wash);
+  border-color: var(--brand-gold-light);
+}
+
+.btn:disabled {
+  color: var(--brand-faint);
+  background: #171818;
+  border-color: #2c2924;
+  opacity: 1;
+}
+
+.btn:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--brand-gold-light);
+  outline-offset: 3px;
+}
+
+input,
+select,
+textarea,
+.search {
+  color: var(--brand-ivory);
+  background: var(--brand-surface);
+  border-color: var(--brand-border);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--brand-faint);
+}
+
+.gain,
+.positive,
+.live,
+.quotechip em.up,
+.mover-panel.gain em,
+.portfoliohero b {
+  color: var(--brand-success);
+}
+
+.loss,
+.quotechip em.down,
+.mover-panel.loss em,
+.logout {
+  color: var(--brand-danger);
+}
+
+/* Public experience */
+.landing {
+  color: var(--brand-text);
+  background: var(--brand-bg);
+}
+
+.publicnav {
+  max-width: 1240px;
+  border-bottom: 1px solid var(--brand-border);
+  background: rgba(8, 11, 16, 0.9);
+}
+
+.publicnav a {
+  color: var(--brand-muted);
+  font-weight: 600;
+}
+
+.publicnav a:hover,
+.plans-link,
+.footerlink:hover {
+  color: var(--brand-gold-light);
+}
+
+.tickerbar {
+  color: var(--brand-ivory);
+  background: #05070a;
+  border-color: var(--brand-border);
+}
+
+.quotechip,
+.quotechip small,
+.authquote span,
+.sparkbars,
+.months,
+.newsitem span,
+.impactnews span {
+  font-family: var(--font-ui);
+}
+
+.quotechip small {
+  color: var(--brand-muted);
+}
+
+.quotechip b {
+  color: var(--brand-ivory);
+}
+
+.hero {
+  max-width: 1040px;
+  background:
+    radial-gradient(ellipse at 50% 0, rgba(164, 122, 69, 0.16), transparent 58%),
+    linear-gradient(180deg, rgba(13, 17, 24, 0.72), transparent 72%);
+}
+
+.eyebrow,
+.kicker,
+.pagehead > div > p,
+.updated {
+  color: var(--brand-gold-light);
+  background: transparent;
+  border-color: var(--brand-border);
+}
+
+.eyebrow {
+  border-radius: 999px;
+}
+
+.authside .eyebrow {
+  color: var(--brand-gold-light);
+  background: var(--brand-gold-wash);
+  border-color: var(--brand-border-strong);
+}
+
+.hero h1,
+.benefits h2,
+.faq h2,
+.plansintro h2,
+.ai-feature h2 {
+  color: var(--brand-ivory);
+  letter-spacing: -0.035em;
+}
+
+.hero h1 em {
+  color: var(--brand-gold-light);
+  font-family: var(--font-display);
+  font-style: normal;
+  font-weight: 500;
+}
+
+.hero > p,
+.benefitlist p,
+.faq details p,
+.plansintro > p:last-child,
+.plansnote,
+.ai-feature > div > p:not(.kicker) {
+  color: var(--brand-muted);
+}
+
+.trust {
+  color: var(--brand-muted);
+}
+
+.trust svg,
+.ai-points svg,
+.iconbox,
+.newsitem svg,
+.impactnews svg,
+.report svg,
+.settingrow > span > svg {
+  color: var(--brand-gold-light);
+}
+
+.terminal-wrap {
+  background: linear-gradient(var(--brand-bg) 50%, #06080b 50%);
+}
+
+.terminal,
+.agent-preview {
+  background: var(--brand-surface);
+  border-color: var(--brand-border-strong);
+  border-radius: var(--brand-radius);
+  box-shadow: var(--brand-shadow);
+}
+
+.terminaltop,
+.chathead {
+  color: var(--brand-muted);
+  background: #090c11;
+  border-color: var(--brand-border);
+}
+
+.mini-side,
+.sidebar {
+  color: var(--brand-muted);
+  background: #080a0e;
+  border-color: var(--brand-border);
+}
+
+.sideitem,
+.navitem {
+  border-radius: 2px;
+}
+
+.sideitem.active,
+.navitem.selected {
+  color: var(--brand-gold-pale);
+  background: var(--brand-gold-wash);
+  box-shadow: inset 3px 0 0 var(--brand-gold-light);
+}
+
+.sideitem:hover,
+.navitem:hover {
+  color: var(--brand-ivory);
+  background: var(--brand-surface-hover);
+}
+
+.showmain,
+.showhead h3 {
+  color: var(--brand-ivory);
+}
+
+.showhead small,
+.stat small,
+.allocation small,
+.cardtitle b {
+  color: var(--brand-muted);
+}
+
+.stat,
+.chartbox,
+.allocation,
+.agent-bubble {
+  color: var(--brand-text);
+  background: var(--brand-surface-raised);
+  border-color: var(--brand-border);
+  border-radius: var(--brand-radius);
+}
+
+.grid {
+  stroke: var(--brand-gold-light);
+  stroke-opacity: 0.12;
+}
+
+.plot {
+  stroke: var(--brand-gold-light);
+}
+
+.ring {
+  background: conic-gradient(var(--brand-gold) 0 48%, #3b3022 48% 80%, var(--brand-success) 80%);
+}
+
+.ring::before,
+.allocation .ring::before {
+  background: var(--brand-surface-raised);
+}
+
+.ring b {
+  color: var(--brand-ivory);
+}
+
+.ai-feature,
+.benefits,
+.faq,
+.plans,
+.quote,
+footer {
+  color: var(--brand-text);
+  background: var(--brand-bg);
+}
+
+.ai-feature,
+.plans,
+.quote,
+footer {
+  border-top: 1px solid var(--brand-border);
+}
+
+.iconbox,
+.agent-title span,
+.chathead > span {
+  background: var(--brand-gold-wash);
+  border: 1px solid var(--brand-border);
+  border-radius: 50%;
+}
+
+.ai-points span,
+.benefitlist h3,
+.faq summary {
+  color: var(--brand-text);
+}
+
+.agent-title {
+  border-color: var(--brand-border);
+}
+
+.agent-question,
+.userbubble {
+  color: var(--brand-bg);
+  background: var(--brand-gold);
+  border-radius: 2px;
+}
+
+.agent-preview > small {
+  color: var(--brand-muted);
+}
+
+.plancard,
+.plancard.featured,
+.plancard.premium {
+  color: var(--brand-text);
+  background: var(--brand-surface);
+  border-color: var(--brand-border);
+  border-radius: var(--brand-radius);
+  box-shadow: none;
+}
+
+.plancard.featured {
+  border-color: var(--brand-gold-light);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+}
+
+.plancard > span,
+.popular,
+.plancard.featured > span {
+  color: var(--brand-gold-light);
+}
+
+.plancard h3,
+.plancard.featured h3,
+.plancard li,
+.plancard.featured li {
+  color: var(--brand-ivory);
+}
+
+.plancard > small,
+.plancard.featured > small,
+.plancard h3 small {
+  color: var(--brand-muted);
+}
+
+.plancard li::before,
+.plancard.featured li::before {
+  color: var(--brand-success);
+}
+
+.quote > p {
+  color: var(--brand-ivory);
+}
+
+.quoteavatar,
+.avatar,
+.bigavatar,
+.profilemini span {
+  color: var(--brand-bg);
+  background: var(--brand-gold-light);
+}
+
+.quote small,
+footer {
+  color: var(--brand-muted);
+}
+
+.faq details,
+footer {
+  border-color: var(--brand-border);
+}
+
+/* Authentication */
+.auth {
+  color: var(--brand-text);
+  background: var(--brand-bg);
+}
+
+.authside {
+  color: var(--brand-ivory);
+  background:
+    linear-gradient(135deg, rgba(164, 122, 69, 0.14), transparent 58%),
+    #080a0e;
+  border-right: 1px solid var(--brand-border);
+}
+
+.authside h1,
+.formbox h2 {
+  color: var(--brand-ivory);
+}
+
+.authside > div > p:last-child,
+.authquote span,
+.formbox > p,
+.divider,
+.check {
+  color: var(--brand-muted);
+}
+
+.authquote {
+  color: var(--brand-text);
+  border-color: var(--brand-gold);
+}
+
+.authform {
+  background: var(--brand-surface);
+}
+
+.formbox label,
+.modalform label,
+.explorer label,
+.fields label {
+  color: var(--brand-text);
+}
+
+.formbox input,
+.modalform input,
+.modalform select,
+.explorer label input,
+.fields input {
+  color: var(--brand-ivory);
+  background: #090c11;
+  border-color: var(--brand-border);
+  border-radius: var(--brand-radius);
+}
+
+.formbox input:focus,
+.modalform input:focus,
+.modalform select:focus,
+.explorer label input:focus,
+.fields input:focus {
+  border-color: var(--brand-gold-light);
+  box-shadow: 0 0 0 3px rgba(201, 166, 107, 0.12);
+}
+
+.formbox input[aria-invalid="true"] {
+  border-color: var(--brand-danger);
+  box-shadow: 0 0 0 3px rgba(207, 131, 124, 0.1);
+}
+
+.password-errors {
+  display: grid;
+  gap: 5px;
+  margin: -3px 0 1px;
+  padding: 10px 12px 10px 28px;
+  color: var(--brand-danger);
+  background: rgba(207, 131, 124, 0.06);
+  border: 1px solid rgba(207, 131, 124, 0.22);
+  border-radius: var(--brand-radius);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.password-errors .password-valid {
+  color: var(--brand-success);
+}
+
+.password-errors.password-errors-valid {
+  background: rgba(143, 182, 163, 0.06);
+  border-color: rgba(143, 182, 163, 0.22);
+}
+
+.field-error {
+  color: var(--brand-danger);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.pass button,
+.back {
+  color: var(--brand-muted);
+}
+
+.link,
+.switch button,
+.textbutton {
+  color: var(--brand-gold-light);
+}
+
+.divider::before,
+.divider::after {
+  background: var(--brand-border);
+}
+
+/* Application shell */
+.app,
+.app-loading {
+  color: var(--brand-text);
+  background: var(--brand-bg);
+}
+
+.app-loading {
+  align-content: center;
+  gap: 16px;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+}
+
+.sidebar {
+  border-right: 1px solid var(--brand-border);
+}
+
+.sidecaption {
+  color: var(--brand-faint);
+}
+
+.workspace,
+.content {
+  background: transparent;
+}
+
+.topbar {
+  color: var(--brand-text);
+  background: rgba(8, 11, 16, 0.9);
+  border-color: var(--brand-border);
+}
+
+.crumb,
+.search,
+.iconbutton,
+.menubtn {
+  color: var(--brand-muted);
+}
+
+.crumb strong,
+.profilemini,
+.search input {
+  color: var(--brand-text);
+}
+
+.search,
+.profilemini {
+  border-color: var(--brand-border);
+}
+
+.pagehead h1,
+.pagehead h1 span,
+.panel h3,
+.movers-heading h2,
+.mover-panel header h3,
+.featured-assets h4,
+.results-title,
+.order-total b,
+.profilecard h2,
+.formpanel h3,
+.settingslist h3,
+.report h2 {
+  color: var(--brand-ivory);
+}
+
+.pagehead h1 span {
+  color: var(--brand-gold-light);
+}
+
+.pagehead small,
+.panelhead p,
+.metrics > .stat small,
+.metrics > .stat span,
+.assetrow small,
+.trow b small,
+.trow > span,
+.empty,
+.profilecard p,
+.profilecard small,
+.switchrow small,
+.settingrow small,
+.report span,
+.report small,
+.movers-heading p,
+.mover-panel header p,
+.mover-list small,
+.mover-empty,
+.featured-assets p,
+.explorer-feedback small,
+.instrument-summary span,
+.instrument-summary small,
+.order-total span {
+  color: var(--brand-muted);
+}
+
+.panel,
+.mainmetric,
+.metrics > .stat,
+.portfoliohero,
+.tablepanel,
+.profilecard,
+.formpanel,
+.settingslist,
+.report,
+.reportbig,
+.mover-panel,
+.mover-skeleton,
+.signalcard,
+.ai-chat,
+.marketpulse {
+  color: var(--brand-text);
+  background: var(--brand-surface);
+  border-color: var(--brand-border);
+  border-radius: var(--brand-radius);
+  box-shadow: none;
+}
+
+.mainmetric,
+.portfoliohero,
+.marketpulse {
+  background:
+    linear-gradient(120deg, rgba(164, 122, 69, 0.12), transparent 62%),
+    var(--brand-surface);
+  border: 1px solid var(--brand-border-strong);
+}
+
+.mainmetric span,
+.mainmetric b small,
+.portfoliohero span,
+.portfoliohero small,
+.marketpulse span,
+.marketpulse p {
+  color: var(--brand-muted);
+}
+
+.mainmetric h2,
+.metrics > .stat strong,
+.portfoliohero h2,
+.portfoliohero h3,
+.marketpulse h2,
+.signalcard b,
+.assetrow b,
+.assetrow strong,
+.trow b,
+.trow strong,
+.legend b,
+.instrument-list button,
+.instrument-summary b,
+.instrument-summary strong,
+.explorer-feedback p,
+.mover-list button {
+  color: var(--brand-ivory);
+}
+
+.mainmetric h2,
+.metrics > .stat strong,
+.portfoliohero h2,
+.portfoliohero h3,
+.report h2,
+.instrument-summary strong {
+  font-family: var(--font-ui);
+}
+
+.metric-chart-tabs button {
+  color: var(--brand-muted);
+}
+
+.metric-chart-tabs button:hover,
+.metric-chart-tabs button.active,
+.tabs .active,
+.filterbar .filteractive,
+.segmented .on {
+  color: var(--brand-gold-pale);
+  background: var(--brand-gold-wash);
+}
+
+.metric-chart small,
+.months {
+  color: var(--brand-muted);
+  font-family: var(--font-ui);
+}
+
+.tabs,
+.segmented,
+.filterbar .filter {
+  border-color: var(--brand-border);
+  border-radius: var(--brand-radius);
+}
+
+.tabs button,
+.filterbar button,
+.segmented button {
+  color: var(--brand-muted);
+}
+
+.ticker {
+  color: var(--brand-gold-pale);
+  background: var(--brand-gold-wash);
+  border: 1px solid var(--brand-border);
+  border-radius: 50%;
+}
+
+.assetrow,
+.newsitem,
+.recommendation,
+.impactnews article,
+.filterbar,
+.trow,
+.settingrow,
+.reportbig > div,
+.instrument-list,
+.instrument-list button,
+.instrument-skeletons,
+.instrument-skeletons span,
+.explorer-feedback,
+.order-total,
+.mover-panel header,
+.mover-list button,
+.profilecard hr {
+  border-color: var(--brand-border);
+}
+
+.thead {
+  color: var(--brand-muted);
+  background: #090c11;
+}
+
+.filterbar,
+.tablepanel {
+  background: var(--brand-surface);
+}
+
+.instrument-list button:hover b,
+.mover-list button:not(:disabled):hover b {
+  color: var(--brand-gold-light);
+}
+
+.instrument-list span,
+.instrument-list small {
+  color: var(--brand-muted);
+}
+
+.instrument-list small:not(.gain):not(.loss) {
+  color: var(--brand-gold-light);
+}
+
+.instrument-summary {
+  color: var(--brand-text);
+  background: #090c11;
+  border-color: var(--brand-border-strong);
+}
+
+.instrument-skeletons span,
+.mover-skeleton {
+  background: linear-gradient(90deg, #0d1118 20%, #171d27 45%, #0d1118 70%);
+  background-size: 240% 100%;
+}
+
+.progress {
+  background: #25231f;
+}
+
+.progress i {
+  background: var(--brand-gold);
+}
+
+.switchrow input,
+.settingrow > input,
+.check input {
+  accent-color: var(--brand-gold);
+}
+
+/* Insights and conversational surfaces */
+.ai-notice {
+  color: var(--brand-gold-pale);
+  background: rgba(164, 122, 69, 0.09);
+  border-color: var(--brand-border-strong);
+  border-left-color: var(--brand-gold-light);
+  border-radius: var(--brand-radius);
+}
+
+.ai-notice > svg,
+.ai-notice button,
+.ai-notice p {
+  color: var(--brand-gold-light);
+}
+
+.pulse-meter {
+  border-color: #302a21;
+  border-top-color: var(--brand-success);
+  border-right-color: var(--brand-success);
+}
+
+.signalcard > span,
+.signalicon,
+.mover-panel header > span {
+  border-radius: 50%;
+}
+
+.signalcard.buy > span,
+.signalicon.buy,
+.mover-panel.gain header > span,
+.reccontent em.buy {
+  color: var(--brand-success);
+  background: rgba(143, 182, 163, 0.1);
+}
+
+.signalcard.sell > span,
+.signalicon.sell,
+.mover-panel.loss header > span,
+.reccontent em.sell {
+  color: var(--brand-danger);
+  background: rgba(207, 131, 124, 0.1);
+}
+
+.signalcard.watch > span {
+  color: var(--brand-warning);
+  background: rgba(212, 170, 101, 0.1);
+}
+
+.signalcard small,
+.reccontent p {
+  color: var(--brand-muted);
+}
+
+.reccontent b,
+.impactnews b {
+  color: var(--brand-text);
+}
+
+.impactnews span {
+  color: var(--brand-gold-light);
+  font-family: var(--font-ui);
+}
+
+.chatbody {
+  background: #090c11;
+}
+
+.aibubble {
+  color: var(--brand-text);
+  background: var(--brand-surface-raised);
+  border-color: var(--brand-border);
+  border-radius: 2px;
+}
+
+.chatprompts button {
+  color: var(--brand-gold-light);
+  background: transparent;
+  border-color: var(--brand-border);
+  border-radius: var(--brand-radius);
+}
+
+.chatprompts button:hover {
+  background: var(--brand-gold-wash);
+  border-color: var(--brand-gold-light);
+}
+
+.chatinput {
+  background: var(--brand-surface);
+  border-color: var(--brand-border);
+}
+
+.chatinput input {
+  color: var(--brand-ivory);
+  background: transparent;
+}
+
+.chatinput button {
+  color: var(--brand-bg);
+  background: var(--brand-gold);
+  border-radius: 50%;
+}
+
+/* Overlays and feedback */
+.modalveil,
+.mobileveil {
+  background: rgba(0, 0, 0, 0.76);
+  backdrop-filter: blur(3px);
+}
+
+.modalbox,
+.moremenu,
+.notifpanel,
+.dark .modalbox,
+.dark .moremenu,
+.dark .notifpanel {
+  color: var(--brand-text);
+  background: var(--brand-surface);
+  border: 1px solid var(--brand-border-strong);
+  border-radius: var(--brand-radius);
+  box-shadow: var(--brand-shadow);
+}
+
+.modalhead h3,
+.helplist b,
+.dark .modalhead h3,
+.dark .helplist b {
+  color: var(--brand-ivory);
+}
+
+.modalhead button,
+.modalbody,
+.helplist li,
+.modalnote,
+.dark .modalbody {
+  color: var(--brand-muted);
+}
+
+.moremenu button,
+.notifitem,
+.dark .moremenu button,
+.dark .notifitem {
+  color: var(--brand-text);
+  border-color: var(--brand-border);
+  border-radius: 2px;
+}
+
+.moremenu button:hover,
+.dark .moremenu button:hover {
+  color: var(--brand-gold-pale);
+  background: var(--brand-gold-wash);
+}
+
+.notifpanel-title {
+  color: var(--brand-gold-light);
+}
+
+.toast {
+  color: var(--brand-bg);
+  background: var(--brand-gold-light);
+  border: 1px solid var(--brand-gold-pale);
+  border-radius: var(--brand-radius);
+  box-shadow: var(--brand-shadow);
+}
+
+/* The interface now uses one dark identity; the existing theme toggle remains functional. */
+.dark {
+  --bg: var(--brand-bg);
+  --ink: var(--brand-ivory);
+  --line: var(--brand-border);
+}
+
+.dark .topbar,
+.dark .panel,
+.dark .mainmetric ~ .stat,
+.dark .tablepanel,
+.dark .formpanel,
+.dark .search,
+.dark .thead,
+.dark .portfoliohero {
+  color: var(--brand-text);
+  background: var(--brand-surface);
+  border-color: var(--brand-border);
+}
+
+.dark .pagehead h1,
+.dark .trow b,
+.dark .trow strong,
+.dark .legend b,
+.dark .ring b {
+  color: var(--brand-ivory);
+}
+
+@media (max-width: 580px) {
+  .brand-logo-image {
+    width: 34px;
+    height: 34px;
+  }
+
+  .brand-wordmark {
+    font-size: 12px;
+  }
+
+  .publicnav {
+    border-bottom-color: var(--brand-border);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn:hover {
+    transform: none;
+  }
+}

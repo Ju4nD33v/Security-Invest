@@ -1,7 +1,12 @@
 import { z } from "zod";
+import { getPasswordValidationErrors } from "@/src/shared/password-policy";
 
 const email = z.string().trim().email().max(254).transform((value) => value.toLowerCase());
-const password = z.string().min(12).max(128);
+const password = z.string().superRefine((value, context) => {
+  for (const message of getPasswordValidationErrors(value)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message });
+  }
+});
 
 export const signUpSchema = z.object({
   firstName: z.string().trim().min(2).max(80),

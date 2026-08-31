@@ -2,7 +2,9 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowDownRight, ArrowUpRight, Bell, BookOpen, Bot, BrainCircuit, BriefcaseBusiness, ChevronDown, CircleHelp, Eye, EyeOff, FileBarChart, Globe2, LayoutDashboard, LockKeyhole, LogOut, Menu, Moon, Plus, Search, Send, Settings as SettingsIcon, ShieldCheck, SlidersHorizontal, Sparkles, Sun, TrendingDown, TrendingUp, UserRound, WalletCards, X } from "lucide-react";
+import Image from "next/image";
 import { FormEvent, useState, useRef, useContext, createContext, Dispatch, SetStateAction, useEffect } from "react";
+import { getPasswordValidationErrors, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/src/shared/password-policy";
 
 type Screen = "home" | "login" | "signup" | "recover" | "dashboard" | "portfolio" | "investments" | "market" | "reports" | "profile" | "settings";
 type ProfileData = { name: string; email: string; phone: string; avatarUrl: string };
@@ -107,7 +109,7 @@ function MoreMenu({ options, triggerClass = "roundmore" }: { options: { label: s
 
 /* ---------- Shared UI ---------- */
 function Logo({ dark = false }: { dark?: boolean }) {
-  return <div className="logo"><span className={dark ? "mark darkmark" : "mark"}>S</span><span>security<span>invest</span></span></div>;
+  return <div className={`logo${dark ? " logo-on-dark" : ""}`}><Image className="brand-logo-image" src="/brand/secure-invest-logo.png" alt="Security Invest" width={1200} height={1200} priority /><span className="brand-wordmark">Security <span>Invest</span></span></div>;
 }
 function Btn({ children, onClick, variant = "primary", type = "button", disabled = false }: { children: React.ReactNode; onClick?: () => void; variant?: "primary" | "ghost" | "outline"; type?: "button" | "submit"; disabled?: boolean }) {
   return <button type={type} onClick={onClick} disabled={disabled} className={`btn ${variant}`}>{children}</button>;
@@ -117,8 +119,8 @@ function LineChart() {
     <svg viewBox="0 0 800 220" className="linechart" role="img" aria-label="Evolução da carteira nos últimos seis meses">
       <defs>
         <linearGradient id="fill" x1="0" x2="0" y1="0" y2="1">
-          <stop stopColor="#2563eb" stopOpacity=".22" />
-          <stop offset="1" stopColor="#2563eb" stopOpacity="0" />
+          <stop stopColor="#c9a66b" stopOpacity=".24" />
+          <stop offset="1" stopColor="#c9a66b" stopOpacity="0" />
         </linearGradient>
       </defs>
       <path className="grid" d="M0 36H800M0 92H800M0 148H800M0 204H800" />
@@ -140,9 +142,9 @@ function PortfolioSparkline({ range, onRangeChange, hasPortfolio }: { range: "6M
       {(["6M", "1A", "Máx."] as const).map((item) => <button key={item} type="button" className={range === item ? "active" : ""} onClick={() => onRangeChange(item)}>{item}</button>)}
     </div>
     <svg viewBox="0 0 180 68" role="img" aria-label={`Evolução simulada da carteira em ${range}`}>
-      <defs><linearGradient id="metric-fill" x1="0" x2="0" y1="0" y2="1"><stop stopColor="#4f8bff" stopOpacity=".35"/><stop offset="1" stopColor="#4f8bff" stopOpacity="0"/></linearGradient></defs>
+      <defs><linearGradient id="metric-fill" x1="0" x2="0" y1="0" y2="1"><stop stopColor="#c9a66b" stopOpacity=".35"/><stop offset="1" stopColor="#c9a66b" stopOpacity="0"/></linearGradient></defs>
       <path d={`M2,68 L${path} L178,68 Z`} fill="url(#metric-fill)" />
-      <polyline points={path} fill="none" stroke="#5b8cff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+      <polyline points={path} fill="none" stroke="#c9a66b" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
     <small>Visualização simulada</small>
   </div>;
@@ -227,7 +229,7 @@ function Landing({ go }: { go: (s: Screen) => void }) {
         <div className="terminal">
           <div className="terminaltop">
             <div><span className="dot red"></span><span className="dot yellow"></span><span className="dot green"></span></div>
-            <span>visão geral · securityinvest</span>
+            <span>visão geral · security invest</span>
             <span className="live">● mercado aberto</span>
           </div>
           <div className="showcase">
@@ -306,21 +308,21 @@ function Landing({ go }: { go: (s: Screen) => void }) {
       </section>
       <section className="quote">
         <p>&ldquo;Finalmente consigo entender como meus investimentos conversam entre si.&rdquo;</p>
-        <div><span className="quoteavatar">RM</span><span><b>Renata Moreira</b><small>Cliente SecurityInvest</small></span></div>
+        <div><span className="quoteavatar">RM</span><span><b>Renata Moreira</b><small>Cliente Security Invest</small></span></div>
       </section>
       <section className="faq" id="perguntas">
         <p className="kicker">Perguntas frequentes</p>
         <h2>Comece sem complicação.</h2>
-        {["O que é a SecurityInvest?", "Preciso ser especialista para usar a plataforma?", "Meus dados ficam protegidos?"].map((q, i) => (
+        {["O que é a Security Invest?", "Preciso ser especialista para usar a plataforma?", "Meus dados ficam protegidos?"].map((q, i) => (
           <details key={q}>
             <summary>{q}<Plus size={18} /></summary>
-            <p>{i === 0 ? "A SecurityInvest é uma plataforma de acompanhamento e análise de investimentos." : "Não. A experiência foi criada para transformar dados financeiros em decisões fáceis de entender."}</p>
+            <p>{i === 0 ? "A Security Invest é uma plataforma de acompanhamento e análise de investimentos." : "Não. A experiência foi criada para transformar dados financeiros em decisões fáceis de entender."}</p>
           </details>
         ))}
       </section>
       <footer>
         <Logo dark />
-        <span>© 2026 SecurityInvest. Investir envolve riscos.</span>
+        <span>© 2026 Security Invest. Investir envolve riscos.</span>
         <div>
           <button className="footerlink" onClick={() => showToast("Página de Privacidade em construção")}>Privacidade</button>
           {" · "}
@@ -339,14 +341,19 @@ function Auth({ screen, go }: { screen: Screen; go: (s: Screen) => void }) {
   const [sent, setSent] = useState(false);
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [passwordValue, setPasswordValue] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const isSign = screen === "signup";
   const recover = screen === "recover";
+  const passwordErrors = isSign ? getPasswordValidationErrors(passwordValue) : [];
+  const confirmationMismatch = isSign && passwordConfirmation.length > 0 && passwordValue !== passwordConfirmation;
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     const endpoint = recover ? "/api/auth/forgot-password" : isSign ? "/api/auth/sign-up" : "/api/auth/sign-in";
     const password = String(form.get("password") ?? "");
+    if (isSign && passwordErrors.length > 0) { showToast(passwordErrors[0]); return; }
     if (isSign && password !== String(form.get("passwordConfirmation") ?? "")) { showToast("As senhas não coincidem"); return; }
     const body = recover ? { email: form.get("email") } : isSign ? { firstName: form.get("firstName"), lastName: form.get("lastName"), email: form.get("email"), password } : { email: form.get("email"), password };
     setLoading(true);
@@ -394,11 +401,42 @@ function Auth({ screen, go }: { screen: Screen; go: (s: Screen) => void }) {
                 <>
                   <label>Senha
                     <div className="pass">
-                      <input name="password" required minLength={12} type={show ? "text" : "password"} placeholder="Sua senha" />
+                      <input
+                        name="password"
+                        required
+                        minLength={isSign ? PASSWORD_MIN_LENGTH : 1}
+                        value={passwordValue}
+                        onChange={(event) => setPasswordValue(event.target.value)}
+                        type={show ? "text" : "password"}
+                        placeholder="Sua senha"
+                        autoComplete={isSign ? "new-password" : "current-password"}
+                        aria-invalid={isSign && passwordValue.length > 0 && passwordErrors.length > 0}
+                        aria-describedby={isSign ? "password-requirements" : undefined}
+                      />
                       <button type="button" onClick={() => setShow(!show)} aria-label="Alternar visibilidade da senha">{show ? <EyeOff size={18} /> : <Eye size={18} />}</button>
                     </div>
                   </label>
-                  {isSign && <label>Confirmar senha<input name="passwordConfirmation" required minLength={12} type="password" placeholder="Repita sua senha" /></label>}
+                  {isSign && passwordValue.length > 0 && (
+                    <ul id="password-requirements" className={`password-errors${passwordErrors.length === 0 ? " password-errors-valid" : ""}`} aria-live="polite">
+                      {passwordErrors.map((message) => <li key={message}>{message}</li>)}
+                      {passwordErrors.length === 0 && <li className="password-valid">Senha válida: entre {PASSWORD_MIN_LENGTH} e {PASSWORD_MAX_LENGTH} caracteres.</li>}
+                    </ul>
+                  )}
+                  {isSign && <label>Confirmar senha
+                    <input
+                      name="passwordConfirmation"
+                      required
+                      minLength={PASSWORD_MIN_LENGTH}
+                      value={passwordConfirmation}
+                      onChange={(event) => setPasswordConfirmation(event.target.value)}
+                      type="password"
+                      placeholder="Repita sua senha"
+                      autoComplete="new-password"
+                      aria-invalid={confirmationMismatch}
+                      aria-describedby={confirmationMismatch ? "password-confirmation-error" : undefined}
+                    />
+                    {confirmationMismatch && <span id="password-confirmation-error" className="field-error" aria-live="polite">As senhas não coincidem.</span>}
+                  </label>}
                 </>
               )}
               {!isSign && !recover && (
@@ -508,7 +546,7 @@ function Dashboard({ page, go }: { page: Screen; go: (s: Screen) => void }) {
       <section className="workspace">
         <header className="topbar">
           <button className="menubtn" onClick={() => setOpen(true)} aria-label="Abrir menu"><Menu /></button>
-          <div className="crumb"><span>SecurityInvest</span><b>/</b><strong>{title[page]}</strong></div>
+          <div className="crumb"><span>Security Invest</span><b>/</b><strong>{title[page]}</strong></div>
           <div className="topactions">
             <label className="search"><Search size={17} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar ativo..." /></label>
             <div className="moremenu-wrap">
@@ -1269,7 +1307,7 @@ function AppInner() {
       .finally(() => { if (active) setCheckingSession(false); });
     return () => { active = false; };
   }, []);
-  if (checkingSession) return <main className="app-loading" aria-live="polite">Carregando sua sessão…</main>;
+  if (checkingSession) return <main className="app-loading" aria-live="polite"><Logo /><span>Carregando sua sessão…</span></main>;
   if (screen === "home") return <Landing go={setScreen} />;
   if (["login", "signup", "recover"].includes(screen)) return <Auth screen={screen} go={setScreen} />;
   return <Dashboard page={screen} go={setScreen} />;
